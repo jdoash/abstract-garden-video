@@ -1,0 +1,31 @@
+{
+  "lastUpdated": "2025-08-28T20:32:32.813Z",
+  "stats": {
+    "totalTasks": 49,
+    "completedTasks": 0,
+    "openTasks": 1,
+    "portfolioValue": 0,
+    "monthlyPotential": 0,
+    "progress": 0
+  },
+  "sprints": {
+    "Sprint 1": {
+      "completed": 0,
+      "total": 20
+    },
+    "Sprint 2": {
+      "completed": 0,
+      "total": 15
+    },
+    "Sprint 3": {
+      "completed": 0,
+      "total": 14
+    }
+  },
+  "level": {
+    "current": 1,
+    "xp": 0,
+    "title": "Beginner"
+  },
+  "recentTasks": []
+}
