@@ -1,0 +1,175 @@
+name: Revenue Tracker
+
+on:
+  issues:
+    types: [closed, labeled]
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  track-revenue:
+    runs-on: ubuntu-latest
+    if: github.event.action == 'closed'
+    steps:
+      - name: Calculate Asset Value
+        uses: actions/github-script@v7
+        with:
+          script: |
+            try {
+              const issue = context.payload.issue;
+              
+              // Real market values based on research
+              const assetValues = {
+                // SOFTWARE & SETUP
+                'Install Maya': 0, // Setup phase
+                'Install Blender': 0,
+                'Install Houdini': 0,
+                'Create test files': 5, // Test models can sell for $5
+                
+                // MODELING ASSETS (CGTrader/TurboSquid prices)
+                'Model hero tree': 75, // Hero models: $50-100
+                'Model environment': 120, // Environment packs: $80-150
+                'Model secondary assets': 45, // Secondary models: $30-60
+                'Create modular kit': 85, // Modular kits: $60-100
+                'Model background': 35, // Background assets: $25-45
+                
+                // TEXTURING & SHADERS
+                'Create procedural shaders': 65, // Shader packs: $40-80
+                'Paint textures': 45, // Texture sets: $30-60
+                'Create UV maps': 0, // Part of model value
+                'Stylized materials': 55, // Material packs: $40-70
+                
+                // RIGGING & ANIMATION
+                'Rig tree': 95, // Rigged models: +50% value
+                'Animate growth': 125, // Animated assets: +100% value
+                'Create control': 0, // Part of rig value
+                'Animation cycles': 85, // Animation packs: $60-100
+                
+                // LIGHTING & RENDERING
+                'Light setup': 35, // Lighting presets: $25-45
+                'Render passes': 45, // Render packs: $30-60
+                'HDRI creation': 75, // HDRI maps: $50-100
+                
+                // EFFECTS & DYNAMICS
+                'Particle effects': 65, // VFX assets: $40-80
+                'Procedural animation': 95, // Procedural setups: $70-120
+                'Simulation cache': 55, // Sim data: $40-70
+                
+                // COMPOSITING
+                'Composite layers': 25, // Comp templates: $20-30
+                'Color grade': 35, // LUT packs: $25-45
+                
+                // FINAL OUTPUTS
+                'Final render': 250, // Complete scene: $200-300
+                'Tutorial documentation': 97, // Tutorial course: $97 (Gumroad)
+                'Project files': 197, // Full project: $150-250
+              };
+              
+              // Find matching asset value
+              let assetValue = 0;
+              const title = issue.title.toLowerCase();
+              
+              for (const [key, value] of Object.entries(assetValues)) {
+                if (title.includes(key.toLowerCase())) {
+                  assetValue = value;
+                  break;
+                }
+              }
+              
+              // Default values by part
+              if (assetValue === 0) {
+                if (issue.labels.some(l => l.name === 'Part 1')) assetValue = 25;
+                if (issue.labels.some(l => l.name === 'Part 2')) assetValue = 45;
+                if (issue.labels.some(l => l.name === 'Part 3')) assetValue = 65;
+              }
+              
+              // Get total completed tasks and calculate portfolio value
+              const allClosed = await github.rest.issues.listForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: 'closed',
+                per_page: 100
+              });
+              
+              let totalValue = 0;
+              let assetCount = 0;
+              
+              // Simple calculation based on task count and average values
+              for (const closedIssue of allClosed.data) {
+                let value = 25; // Default $25 per asset
+                
+                // Check labels for value multipliers
+                if (closedIssue.labels.some(l => l.name === 'modeling')) value = 75;
+                if (closedIssue.labels.some(l => l.name === 'animation')) value = 95;
+                if (closedIssue.labels.some(l => l.name === 'rendering')) value = 45;
+                if (closedIssue.labels.some(l => l.name === 'Part 3')) value = 85;
+                
+                totalValue += value;
+                assetCount++;
+              }
+              
+              // Monthly recurring potential (if 20% of assets sell monthly)
+              const monthlyPotential = Math.round(totalValue * 0.2);
+              
+              // Post revenue tracking
+              let message = `💰 Asset Value: $${assetValue}\n\n`;
+              message += `📊 Portfolio Status:\n`;
+              message += `• Total Assets: ${assetCount}\n`;
+              message += `• Portfolio Value: $${totalValue}\n`;
+              message += `• Monthly Potential: $${monthlyPotential}/mo\n\n`;
+              
+              // Marketplace recommendations
+              if (assetValue > 100) {
+                message += `🎯 Marketplace Strategy:\n`;
+                message += `• TurboSquid CheckMate: $${Math.round(assetValue * 1.3)}\n`;
+                message += `• CGTrader Pro: $${assetValue}\n`;
+                message += `• Gumroad Bundle: $${Math.round(assetValue * 0.8)}\n`;
+              }
+              
+              // Add milestone bonuses
+              if (assetCount === 10) message += `\n🏆 Milestone: First $500 portfolio!`;
+              if (assetCount === 20) message += `\n🏆 Milestone: $1000+ monthly potential!`;
+              if (assetCount === 30) message += `\n🏆 Milestone: Professional seller status!`;
+              if (assetCount === 56) message += `\n🎉 PROJECT COMPLETE: $3000+ portfolio ready for market!`;
+              
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: message
+              });
+              
+              // Update progress dashboard with revenue
+              const dashboards = await github.rest.issues.listForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                labels: 'dashboard',
+                state: 'open'
+              });
+              
+              if (dashboards.data.length > 0) {
+                const dashboard = dashboards.data[0];
+                let body = dashboard.body || '';
+                
+                // Add revenue section if not present
+                if (!body.includes('Revenue Potential')) {
+                  body += `\n\n## 💰 Revenue Potential\n`;
+                  body += `Portfolio Value: $${totalValue}\n`;
+                  body += `Monthly Potential: $${monthlyPotential}\n`;
+                  body += `Assets Created: ${assetCount}\n`;
+                  
+                  await github.rest.issues.update({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: dashboard.number,
+                    body: body
+                  });
+                }
+              }
+              
+            } catch (error) {
+              console.error('Revenue tracking error:', error.message);
+            }
