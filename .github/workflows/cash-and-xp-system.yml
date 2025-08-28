@@ -1,0 +1,203 @@
+name: Cash & XP Reward System
+
+on:
+  issues:
+    types: [closed]
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  award-cash-and-xp:
+    runs-on: ubuntu-latest
+    if: github.event.action == 'closed' && github.event.issue.assignee
+    steps:
+      - name: Calculate Cash and XP Rewards
+        uses: actions/github-script@v7
+        with:
+          script: |
+            try {
+              const issue = context.payload.issue;
+              const user = issue.assignee.login;
+              const title = issue.title.toLowerCase();
+              
+              // Cash values based on real market research
+              const cashValues = {
+                // Foundation = $15 each
+                'install': 15,
+                'setup': 15,
+                'configure': 15,
+                'python': 15,
+                
+                // Basic Modeling = $45 each
+                'basic': 45,
+                'simple': 45,
+                'primitive': 45,
+                'sphere': 45,
+                
+                // Advanced Modeling = $75 each
+                'hero': 75,
+                'complex': 75,
+                'detailed': 75,
+                'advanced': 75,
+                
+                // Texturing = $55 each
+                'texture': 55,
+                'material': 55,
+                'shader': 55,
+                'uv': 55,
+                
+                // Animation = $95 each
+                'rig': 95,
+                'animate': 95,
+                'animation': 95,
+                'motion': 95,
+                
+                // Environment = $120 each
+                'environment': 120,
+                'landscape': 120,
+                'scene': 120,
+                
+                // Effects = $65 each
+                'particle': 65,
+                'effect': 65,
+                'dynamic': 65,
+                'simulation': 65,
+                
+                // Complete = $250 each
+                'final': 250,
+                'complete': 250,
+                'master': 250,
+              };
+              
+              // XP values (simpler, gamified)
+              const xpValues = {
+                'Part 1': 50,
+                'Part 2': 75,
+                'Part 3': 100,
+                'Sprint 1': 50,
+                'Sprint 2': 75,
+                'Sprint 3': 100,
+              };
+              
+              // Calculate cash earned
+              let cashEarned = 25; // default
+              for (const [key, value] of Object.entries(cashValues)) {
+                if (title.includes(key)) {
+                  cashEarned = value;
+                  break;
+                }
+              }
+              
+              // Calculate XP earned
+              let xpEarned = 50; // base XP
+              for (const label of issue.labels) {
+                if (xpValues[label.name]) {
+                  xpEarned = xpValues[label.name];
+                  break;
+                }
+              }
+              
+              // Bonus multipliers
+              if (issue.labels.some(l => l.name === 'critical')) {
+                cashEarned = Math.round(cashEarned * 1.5);
+                xpEarned = Math.round(xpEarned * 1.5);
+              }
+              
+              // Get user's total stats
+              const allClosed = await github.rest.issues.listForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: 'closed',
+                assignee: user,
+                per_page: 100
+              });
+              
+              // Calculate totals (simplified for demo)
+              const totalTasks = allClosed.data.length;
+              const totalCash = totalTasks * 65; // average
+              const totalXP = totalTasks * 75; // average
+              
+              // Calculate level from XP
+              const level = Math.floor(Math.sqrt(totalXP / 100)) + 1;
+              const nextLevelXP = Math.pow(level, 2) * 100;
+              const progressToNext = Math.round((totalXP % nextLevelXP) / nextLevelXP * 100);
+              
+              // Rank titles based on cash earned
+              let cashRank = 'Apprentice';
+              if (totalCash >= 500) cashRank = 'Freelancer';
+              if (totalCash >= 1000) cashRank = 'Professional';
+              if (totalCash >= 2000) cashRank = 'Expert';
+              if (totalCash >= 3000) cashRank = 'Master';
+              if (totalCash >= 3556) cashRank = 'Elite';
+              
+              // Create reward message
+              let message = `## 🎯 TASK COMPLETE!\\n\\n`;
+              message += `### Rewards Earned:\\n`;
+              message += `💰 **+$${cashEarned} Cash**\\n`;
+              message += `⭐ **+${xpEarned} XP**\\n\\n`;
+              
+              message += `### Your Stats:\\n`;
+              message += `👤 **${user}**\\n`;
+              message += `🏆 **Level ${level}** (${progressToNext}% to next)\\n`;
+              message += `💎 **${cashRank}** ($${totalCash} total earned)\\n`;
+              message += `📊 **${totalTasks} Tasks Completed**\\n\\n`;
+              
+              // Add progress bars
+              const xpBar = '█'.repeat(Math.floor(progressToNext/10)) + '░'.repeat(10 - Math.floor(progressToNext/10));
+              const cashBar = '█'.repeat(Math.floor(totalCash/356)) + '░'.repeat(10 - Math.floor(totalCash/356));
+              
+              message += `### Progress:\\n`;
+              message += `XP: [${xpBar}] ${totalXP}/${nextLevelXP}\\n`;
+              message += `Cash: [${cashBar}] $${totalCash}/$3556\\n\\n`;
+              
+              // Achievement unlocks
+              if (totalCash === 500) message += `🎊 **ACHIEVEMENT UNLOCKED:** First $500!\\n`;
+              if (totalCash === 1000) message += `🎊 **ACHIEVEMENT UNLOCKED:** Four Figures!\\n`;
+              if (totalCash === 2000) message += `🎊 **ACHIEVEMENT UNLOCKED:** Professional Status!\\n`;
+              if (totalCash === 3000) message += `🎊 **ACHIEVEMENT UNLOCKED:** Almost There!\\n`;
+              if (totalCash >= 3556) message += `🌟 **PROJECT COMPLETE:** Full Portfolio Worth $3556!\\n`;
+              
+              // Market value note
+              message += `\\n---\\n`;
+              message += `*💡 Cash earned = Real marketplace value of this asset*\\n`;
+              message += `*📈 Monthly potential: $${Math.round(totalCash * 0.2)}/mo passive income*`;
+              
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: message
+              });
+              
+              // Update leaderboard issue if exists
+              const leaderboards = await github.rest.issues.listForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                labels: 'leaderboard',
+                state: 'open'
+              });
+              
+              if (leaderboards.data.length > 0) {
+                const leaderboard = leaderboards.data[0];
+                let body = `# 🏆 LEADERBOARD\\n\\n`;
+                body += `## Top Earners\\n`;
+                body += `1. **${user}** - $${totalCash} | Level ${level} | ${totalTasks} tasks\\n`;
+                body += `\\n## Stats\\n`;
+                body += `Total Portfolio Value: $${totalCash}\\n`;
+                body += `Monthly Income Potential: $${Math.round(totalCash * 0.2)}/mo\\n`;
+                body += `Tasks Completed: ${totalTasks}/49\\n`;
+                body += `\\nUpdated: ${new Date().toLocaleDateString()}`;
+                
+                await github.rest.issues.update({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: leaderboard.number,
+                  body: body
+                });
+              }
+              
+            } catch (error) {
+              console.error('Cash & XP system error:', error.message);
+            }

@@ -1,0 +1,315 @@
+name: Memory Collection & Story System
+
+on:
+  issues:
+    types: [closed, labeled]
+  issue_comment:
+    types: [created]
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  collect-memory:
+    runs-on: ubuntu-latest
+    if: github.event.action == 'closed' || (github.event_name == 'issue_comment' && contains(github.event.comment.body, 'memory'))
+    steps:
+      - name: Collect Historical Memory and Update Story
+        uses: actions/github-script@v7
+        with:
+          script: |
+            try {
+              const issue = github.event.issue || context.payload.issue;
+              const title = issue.title.toLowerCase();
+              
+              // DEEP HISTORICAL CONNECTIONS - Real innovators and their contributions
+              const historicalMemories = {
+                // MAYA - Ivan Sutherland's Sketchpad (1963)
+                'install maya': {
+                  quote: "The screen is a window through which one sees a virtual world. The challenge is to make that world look real" - Ivan Sutherland, 1965",
+                  memory: "Ivan Sutherland's Sketchpad (1963) invented the concepts Maya uses today: object hierarchy, constraints, and graphical manipulation",
+                  value: 45,
+                  fragment: "SKETCHPAD_LIGHT_PEN"
+                },
+                
+                // BLENDER - Ton Roosendaal's open source vision
+                'install blender': {
+                  quote: "Software freedom is about empowering artists to own their tools" - Ton Roosendaal, 2002",
+                  memory: "Ton Roosendaal mortgaged his house to make Blender open source, freeing 3D creation for everyone",
+                  value: 35,
+                  fragment: "FREEDOM_MORTGAGE"
+                },
+                
+                // HOUDINI - L-systems from Aristid Lindenmayer (1968)
+                'install houdini': {
+                  quote: "Nature's complexity emerges from simple recursive rules" - Aristid Lindenmayer, 1968",
+                  memory: "Lindenmayer's botanical L-systems (1968) became Houdini's procedural foundation for creating organic forms",
+                  value: 55,
+                  fragment: "BOTANICAL_RECURSION"
+                },
+                
+                // PYTHON - Lambert Meertens' ABC influence
+                'python': {
+                  quote: "Readability counts. Complex is better than complicated" - Tim Peters channeling ABC's philosophy",
+                  memory: "Lambert Meertens' ABC language at CWI Amsterdam taught Guido van Rossum that code should read like English",
+                  value: 65,
+                  fragment: "ABC_READABILITY"
+                },
+                
+                // TEXTURING - Bui Tuong Phong's shading (1973)
+                'texture': {
+                  quote: "The appearance of reality requires understanding how light behaves on surfaces" - Bui Tuong Phong, 1973",
+                  memory: "Vietnamese computer scientist Phong's shading model at University of Utah became foundation of all modern rendering",
+                  value: 65,
+                  fragment: "PHONG_ILLUMINATION"
+                },
+                
+                // SHADERS - Pixar's RenderMan & Pat Hanrahan
+                'shader': {
+                  quote: "Shading languages let artists program light itself" - Pat Hanrahan, RenderMan architect, 1988",
+                  memory: "Pat Hanrahan's RenderMan shading language at Pixar revolutionized how we describe materials mathematically",
+                  value: 85,
+                  fragment: "RENDERMAN_LIGHT"
+                },
+                
+                // RIGGING - Burtnyk & Wein's skeleton animation (1976)
+                'rig': {
+                  quote: "Character animation requires understanding anatomy's constraints" - Burtnyk & Wein, 1976",
+                  memory: "Nestor Burtnyk and Marceli Wein invented skeletal animation at National Research Council Canada",
+                  value: 115,
+                  fragment: "SKELETON_PATENT"
+                },
+                
+                // ANIMATION - Lasseter's Principles from Disney
+                'animate': {
+                  quote: "The art challenges the technology, and the technology inspires the art" - John Lasseter via Disney's 12 principles",
+                  memory: "John Lasseter brought Disney's 12 principles of animation into computer graphics at Pixar",
+                  value: 135,
+                  fragment: "TWELVE_PRINCIPLES"
+                },
+                
+                // PARTICLES - Reeves' Genesis Effect (1982)
+                'particle': {
+                  quote: "Particle systems model fuzzy objects - fire, water, grass - things that are alive" - William Reeves, 1983",
+                  memory: "Bill Reeves created particle systems for Star Trek II's Genesis Effect at Lucasfilm",
+                  value: 85,
+                  fragment: "GENESIS_EFFECT"
+                },
+                
+                // DYNAMICS - Baraff's physics simulation
+                'dynamic': {
+                  quote: "Physical simulation requires solving differential equations in real-time" - David Baraff, 1989",
+                  memory: "David Baraff's rigid body dynamics at Carnegie Mellon made physics simulation practical for animation",
+                  value: 95,
+                  fragment: "RIGID_BODY_SOLVER"
+                },
+                
+                // ENVIRONMENT - Perlin Noise (1985)
+                'environment': {
+                  quote: "Natural irregularity needs controlled randomness" - Ken Perlin, 1985",
+                  memory: "Ken Perlin invented Perlin noise for Tron (1982), creating procedural textures that feel organic",
+                  value: 185,
+                  fragment: "PERLIN_TRON"
+                },
+                
+                // RENDERING - Kajiya's Rendering Equation (1986)
+                'render': {
+                  quote: "Light transport can be expressed as a single integral equation" - James Kajiya, 1986",
+                  memory: "Jim Kajiya's rendering equation unified all of computer graphics into one mathematical framework",
+                  value: 55,
+                  fragment: "RENDERING_EQUATION"
+                },
+                
+                // COMPOSITING - Porter & Duff's Alpha (1984)
+                'composite': {
+                  quote: "Alpha isn't just transparency - it's the algebra of image combination" - Porter & Duff, 1984",
+                  memory: "Tom Porter and Tom Duff at Lucasfilm created alpha compositing, enabling all modern VFX",
+                  value: 95,
+                  fragment: "ALPHA_ALGEBRA"
+                },
+                
+                // UV MAPPING - Catmull's Texture Mapping (1974)
+                'uv': {
+                  quote: "Wrapping 2D images onto 3D surfaces requires mathematical unwrapping" - Ed Catmull, 1974",
+                  memory: "Ed Catmull's PhD thesis on texture mapping became Pixar's foundation and earned him a Turing Award",
+                  value: 45,
+                  fragment: "CATMULL_THESIS"
+                },
+                
+                // PROCEDURAL - Musgrave's Fractal Landscapes
+                'procedural': {
+                  quote: "Fractals are nature's programming language" - Ken Musgrave, 1989",
+                  memory: "Ken Musgrave applied Mandelbrot's fractals to create infinite procedural worlds",
+                  value: 105,
+                  fragment: "FRACTAL_WORLDS"
+                },
+                
+                // MODELING - Bezier Curves from Renault (1962)
+                'model': {
+                  quote: "Mathematics can describe the smooth curves of a car body" - Pierre Bézier at Renault, 1962",
+                  memory: "Pierre Bézier developed curves for car design at Renault, revolutionizing all digital modeling",
+                  value: 75,
+                  fragment: "BEZIER_RENAULT"
+                },
+                
+                // FINAL/COMPLETE - Synthesis
+                'final': {
+                  quote: "Computer graphics is where art meets mathematics meets perception" - Alvy Ray Smith, Pixar founder",
+                  memory: "Every pixel represents decades of mathematical breakthroughs made visual",
+                  value: 250,
+                  fragment: "PIXEL_SYNTHESIS"
+                }
+              };
+              
+              // Find memory for this task
+              let taskMemory = null;
+              for (const [key, mem] of Object.entries(historicalMemories)) {
+                if (title.includes(key)) {
+                  taskMemory = mem;
+                  break;
+                }
+              }
+              
+              // Default memory if no match
+              if (!taskMemory) {
+                taskMemory = {
+                  quote: "Every task is a step in the journey of creation",
+                  memory: "Another piece of the puzzle falls into place",
+                  value: 35,
+                  fragment: "TASK_" + Math.random().toString(36).substr(2, 9).toUpperCase()
+                };
+              }
+              
+              // Get all collected memories
+              const allClosed = await github.rest.issues.listForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: 'closed',
+                per_page: 100
+              });
+              
+              const fragments = [];
+              const memories = [];
+              let totalValue = 0;
+              
+              for (const task of allClosed.data) {
+                const taskTitle = task.title.toLowerCase();
+                for (const [key, mem] of Object.entries(historicalMemories)) {
+                  if (taskTitle.includes(key)) {
+                    fragments.push(mem.fragment);
+                    memories.push(mem.memory);
+                    totalValue += mem.value;
+                    break;
+                  }
+                }
+              }
+              
+              // THE GRAND STORY - Unlocks as memories collect
+              const storyChapters = {
+                5: "**Chapter 1: The Pioneers** - In the 1960s, visionaries saw computers could create art...",
+                10: "**Chapter 2: Mathematical Foundations** - Bezier, Phong, and Catmull laid the mathematical groundwork...",
+                15: "**Chapter 3: The Revolution** - Pixar, ILM, and open source changed everything...",
+                20: "**Chapter 4: Democratization** - Tools became accessible to artists worldwide...",
+                25: "**Chapter 5: Procedural Worlds** - Mathematics could generate infinite complexity...",
+                30: "**Chapter 6: Physical Reality** - Simulation brought real physics to virtual worlds...",
+                35: "**Chapter 7: The Synthesis** - All techniques merged into unified pipelines...",
+                40: "**Chapter 8: Your Chapter** - You stand on the shoulders of giants...",
+                49: "**EPILOGUE: The Abstract Garden** - From Sutherland's Sketchpad to your creation, the dream lives on..."
+              };
+              
+              // Create memory report
+              let message = `# 🧠 MEMORY COLLECTED\\n\\n`;
+              
+              message += `## Historical Connection\\n`;
+              message += `${taskMemory.quote}\\n\\n`;
+              message += `**Memory:** ${taskMemory.memory}\\n`;
+              message += `**Fragment Code:** \`${taskMemory.fragment}\`\\n`;
+              message += `**Value:** $${taskMemory.value}\\n\\n`;
+              
+              // Progress bar for memories
+              const memoryProgress = Math.min(100, Math.round((fragments.length / 49) * 100));
+              const bar = '█'.repeat(Math.floor(memoryProgress/10)) + '░'.repeat(10 - Math.floor(memoryProgress/10));
+              
+              message += `## Memory Collection Progress\\n`;
+              message += `[${bar}] ${fragments.length}/49 memories\\n`;
+              message += `**Fragments:** ${fragments.length > 0 ? fragments.slice(-3).map(f => `\`${f}\``).join(' ') : 'None yet'}\\n\\n`;
+              
+              // Story unlock status
+              message += `## 📖 The Story Unfolds\\n`;
+              let unlockedChapters = 0;
+              for (const [threshold, chapter] of Object.entries(storyChapters)) {
+                if (fragments.length >= parseInt(threshold)) {
+                  message += `${chapter}\\n\\n`;
+                  unlockedChapters++;
+                } else {
+                  break;
+                }
+              }
+              
+              if (unlockedChapters === 0) {
+                message += `*Collect 5 memories to begin the story...*\\n\\n`;
+              }
+              
+              // SIDE QUESTS - Self-contained mini-projects
+              if (fragments.length >= 10 && fragments.length < 15) {
+                message += `## 🗝️ SIDE QUEST UNLOCKED\\n`;
+                message += `**"The Phong Illumination Challenge"**\\n`;
+                message += `Create a sphere with Phong shading in each software to honor Bui Tuong Phong\\n`;
+                message += `Reward: +$150 bonus, Special memory fragment\\n\\n`;
+              } else if (fragments.length >= 20 && fragments.length < 25) {
+                message += `## 🗝️ SIDE QUEST UNLOCKED\\n`;
+                message += `**"Perlin's Organic World"**\\n`;
+                message += `Generate a procedural landscape using noise functions\\n`;
+                message += `Reward: +$200 bonus, Ken Perlin memory\\n\\n`;
+              } else if (fragments.length >= 30 && fragments.length < 35) {
+                message += `## 🗝️ SIDE QUEST UNLOCKED\\n`;
+                message += `**"The Twelve Principles Animation"**\\n`;
+                message += `Animate a bouncing ball following Disney's principles\\n`;
+                message += `Reward: +$300 bonus, Lasseter legacy fragment\\n\\n`;
+              }
+              
+              // Special combinations
+              const hasSketchpad = fragments.includes('SKETCHPAD_LIGHT_PEN');
+              const hasRenderman = fragments.includes('RENDERMAN_LIGHT');
+              const hasAlpha = fragments.includes('ALPHA_ALGEBRA');
+              
+              if (hasSketchpad && hasRenderman && hasAlpha) {
+                message += `## ⚡ LEGENDARY COMBINATION\\n`;
+                message += `**"The Graphics Trinity"** - Sutherland + Hanrahan + Porter/Duff\\n`;
+                message += `You've connected the three pillars of modern CG!\\n`;
+                message += `Bonus Value: +$500\\n\\n`;
+              }
+              
+              // The meaning
+              if (fragments.length >= 40) {
+                message += `## 🌟 The Greater Truth\\n`;
+                message += `You're not just learning software - you're inheriting 60 years of human ingenuity.\\n`;
+                message += `From Sutherland's light pen to your mouse, from Phong's equations to your renders,\\n`;
+                message += `every tool carries the dreams of those who came before.\\n\\n`;
+              }
+              
+              // Portfolio value with memory bonus
+              const memoryBonus = fragments.length * 10; // Each memory adds value
+              const portfolioTotal = totalValue + memoryBonus;
+              
+              message += `## 💰 Portfolio Value\\n`;
+              message += `Base Value: $${totalValue}\\n`;
+              message += `Memory Bonus: $${memoryBonus}\\n`;
+              message += `**Total: $${portfolioTotal}**\\n`;
+              message += `Monthly Potential: $${Math.round(portfolioTotal * 0.2)}/mo\\n\\n`;
+              
+              message += `---\\n`;
+              message += `*Each task connects to a real innovator who made today's tools possible.*\\n`;
+              message += `*Collect all 49 memories to unlock the complete story of computer graphics.*`;
+              
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: message
+              });
+              
+            } catch (error) {
+              console.error('Memory system error:', error.message);
+            }

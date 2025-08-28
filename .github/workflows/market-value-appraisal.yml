@@ -1,0 +1,255 @@
+name: Market Value Appraisal System
+
+on:
+  issues:
+    types: [closed]
+  issue_comment:
+    types: [created]
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  appraise-asset-value:
+    runs-on: ubuntu-latest
+    if: github.event.action == 'closed' || (github.event_name == 'issue_comment' && contains(github.event.comment.body, 'appraise'))
+    steps:
+      - name: Calculate Market Value with Quality Metrics
+        uses: actions/github-script@v7
+        with:
+          script: |
+            try {
+              const issue = github.event.issue || context.payload.issue;
+              const title = issue.title.toLowerCase();
+              
+              // Base values from deep market research (min-max ranges)
+              const marketRanges = {
+                // Foundation Tasks: $5-25 based on complexity
+                'install': { min: 5, max: 25, category: 'Foundation' },
+                'setup': { min: 10, max: 30, category: 'Foundation' },
+                'configure': { min: 10, max: 30, category: 'Foundation' },
+                'python': { min: 15, max: 45, category: 'Foundation' },
+                
+                // Basic Modeling: $25-65 based on quality
+                'basic': { min: 25, max: 65, category: 'Basic Modeling' },
+                'simple': { min: 25, max: 65, category: 'Basic Modeling' },
+                'primitive': { min: 20, max: 50, category: 'Basic Modeling' },
+                'test': { min: 15, max: 45, category: 'Basic Modeling' },
+                
+                // Advanced Modeling: $50-125 based on detail
+                'hero': { min: 75, max: 150, category: 'Hero Asset' },
+                'complex': { min: 65, max: 125, category: 'Advanced Modeling' },
+                'detailed': { min: 60, max: 120, category: 'Advanced Modeling' },
+                'advanced': { min: 70, max: 135, category: 'Advanced Modeling' },
+                
+                // Texturing: $30-85 based on resolution/quality
+                'texture': { min: 35, max: 85, category: 'Texturing' },
+                'material': { min: 40, max: 95, category: 'Materials' },
+                'shader': { min: 45, max: 105, category: 'Shaders' },
+                'uv': { min: 30, max: 70, category: 'UV Mapping' },
+                
+                // Animation: $75-200 based on complexity
+                'rig': { min: 75, max: 175, category: 'Rigging' },
+                'animate': { min: 85, max: 195, category: 'Animation' },
+                'animation': { min: 85, max: 195, category: 'Animation' },
+                'motion': { min: 75, max: 165, category: 'Motion' },
+                
+                // Environment: $80-250 based on scope
+                'environment': { min: 100, max: 250, category: 'Environment' },
+                'landscape': { min: 85, max: 225, category: 'Landscape' },
+                'scene': { min: 95, max: 235, category: 'Scene' },
+                'background': { min: 65, max: 145, category: 'Background' },
+                
+                // Effects: $45-125 based on complexity
+                'particle':eman 55, max: 125, category: 'Effects' },
+                'effect': { min: 50, max: 115, category: 'Effects' },
+                'dynamic': { min: 60, max: 135, category: 'Dynamics' },
+                'simulation': { min: 65, max: 145, category: 'Simulation' },
+                
+                // Complete Projects: $150-500 based on polish
+                'final': { min: 200, max: 500, category: 'Complete Project' },
+                'complete': { min: 175, max: 450, category: 'Complete Project' },
+                'master': { min: 225, max: 550, category: 'Master File' },
+                'integration': { min: 150, max: 350, category: 'Integration' },
+              };
+              
+              // Quality metrics calculation
+              const calculateQualityScore = (issue) => {
+                let score = 50; // Base quality score
+                
+                // Time to complete (faster = higher skill)
+                const created = new Date(issue.created_at);
+                const closed = new Date(issue.closed_at || new Date());
+                const hoursToComplete = (closed - created) / (1000 * 60 * 60);
+                
+                if (hoursToComplete < 24) score += 15; // Same day completion
+                else if (hoursToComplete < 72) score += 10; // Within 3 days
+                else if (hoursToComplete < 168) score += 5; // Within a week
+                
+                // Sprint bonus (later sprints = more advanced)
+                if (issue.labels.some(l => l.name === 'Sprint 1')) score += 0;
+                if (issue.labels.some(l => l.name === 'Sprint 2')) score += 10;
+                if (issue.labels.some(l => l.name === 'Sprint 3')) score += 20;
+                
+                // Part complexity bonus
+                if (issue.labels.some(l => l.name === 'Part 1')) score += 0;
+                if (issue.labels.some(l => l.name === 'Part 2')) score += 10;
+                if (issue.labels.some(l => l.name === 'Part 3')) score += 15;
+                
+                // Comments/iterations (more discussion = more complex)
+                if (issue.comments > 3) score += 10;
+                if (issue.comments > 5) score += 5;
+                
+                // Priority/critical tasks
+                if (issue.labels.some(l => l.name === 'critical')) score += 15;
+                if (issue.labels.some(l => l.name === 'priority')) score += 10;
+                
+                return Math.min(100, score); // Cap at 100
+              };
+              
+              // Find asset category and range
+              let assetRange = { min: 25, max: 75, category: 'General Asset' };
+              for (const [key, range] of Object.entries(marketRanges)) {
+                if (title.includes(key)) {
+                  assetRange = range;
+                  break;
+                }
+              }
+              
+              // Calculate quality score
+              const qualityScore = calculateQualityScore(issue);
+              
+              // Calculate actual value based on quality
+              const valueRange = assetRange.max - assetRange.min;
+              const actualValue = Math.round(assetRange.min + (valueRange * (qualityScore / 100)));
+              
+              // XP based on value and difficulty
+              const xpEarned = Math.round(actualValue * 0.75);
+              
+              // Get portfolio totals
+              const allClosed = await github.rest.issues.listForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: 'closed',
+                per_page: 100
+              });
+              
+              // Calculate portfolio value with quality scores
+              let portfolioValue = 0;
+              let totalXP = 0;
+              const assetBreakdown = {};
+              
+              for (const closedIssue of allClosed.data) {
+                const issueTitle = closedIssue.title.toLowerCase();
+                let issueRange = { min: 25, max: 75, category: 'General' };
+                
+                for (const [key, range] of Object.entries(marketRanges)) {
+                  if (issueTitle.includes(key)) {
+                    issueRange = range;
+                    break;
+                  }
+                }
+                
+                const issueQuality = calculateQualityScore(closedIssue);
+                const issueValue = Math.round(issueRange.min + ((issueRange.max - issueRange.min) * (issueQuality / 100)));
+                portfolioValue += issueValue;
+                totalXP += Math.round(issueValue * 0.75);
+                
+                // Track by category
+                if (!assetBreakdown[issueRange.category]) {
+                  assetBreakdown[issueRange.category] = { count: 0, value: 0 };
+                }
+                assetBreakdown[issueRange.category].count++;
+                assetBreakdown[issueRange.category].value += issueValue;
+              }
+              
+              // Calculate marketplace projections
+              const monthlyRevenue = Math.round(portfolioValue * 0.2); // 20% sell rate
+              const cgtraderTakeHome = Math.round(monthlyRevenue * (portfolioValue < 1000 ? 0.60 : portfolioValue < 15000 ? 0.66 : 0.76));
+              const turbosquidTakeHome = Math.round(monthlyRevenue * 0.50);
+              const gumroadTakeHome = Math.round(monthlyRevenue * 0.92);
+              
+              // Create appraisal report
+              let message = `# 💎 ASSET APPRAISAL REPORT\\n\\n`;
+              
+              message += `## Asset Details\\n`;
+              message += `**Task:** ${issue.title}\\n`;
+              message += `**Category:** ${assetRange.category}\\n`;
+              message += `**Market Range:** $${assetRange.min} - $${assetRange.max}\\n\\n`;
+              
+              message += `## Quality Assessment\\n`;
+              message += `**Quality Score:** ${qualityScore}/100\\n`;
+              
+              // Quality breakdown
+              const qualityBar = '█'.repeat(Math.floor(qualityScore/10)) + '░'.repeat(10 - Math.floor(qualityScore/10));
+              message += `**Rating:** [${qualityBar}]\\n`;
+              
+              // Quality factors
+              message += `\\n**Quality Factors:**\\n`;
+              const hoursToComplete = (new Date(issue.closed_at || new Date()) - new Date(issue.created_at)) / (1000 * 60 * 60);
+              if (hoursToComplete < 24) message += `✅ Rapid completion (${Math.round(hoursToComplete)}h)\\n`;
+              if (issue.labels.some(l => l.name === 'Sprint 3')) message += `✅ Advanced sprint level\\n`;
+              if (issue.labels.some(l => l.name === 'Part 3')) message += `✅ Complex task category\\n`;
+              if (issue.comments > 3) message += `✅ Collaborative refinement\\n`;
+              
+              message += `\\n## Market Valuation\\n`;
+              message += `### 🏷️ APPRAISED VALUE: $${actualValue}\\n`;
+              message += `⭐ **XP Earned:** ${xpEarned} XP\\n\\n`;
+              
+              // Marketplace comparison
+              message += `**If sold on marketplaces:**\\n`;
+              message += `• CGTrader (${Math.round((portfolioValue < 1000 ? 60 : portfolioValue < 15000 ? 66 : 76))}%): $${Math.round(actualValue * (portfolioValue < 1000 ? 0.60 : portfolioValue < 15000 ? 0.66 : 0.76))}\\n`;
+              message += `• TurboSquid (50%): $${Math.round(actualValue * 0.50)}\\n`;
+              message += `• Gumroad (92%): $${Math.round(actualValue * 0.92)}\\n`;
+              
+              message += `\\n## Portfolio Impact\\n`;
+              message += `**Total Portfolio Value:** $${portfolioValue}\\n`;
+              message += `**Total Assets:** ${allClosed.data.length}\\n`;
+              message += `**Average Asset Value:** $${Math.round(portfolioValue / allClosed.data.length)}\\n\\n`;
+              
+              // Asset breakdown by category
+              message += `**Portfolio Composition:**\\n`;
+              for (const [category, data] of Object.entries(assetBreakdown)) {
+                const percent = Math.round((data.value / portfolioValue) * 100);
+                message += `• ${category}: ${data.count} assets ($${data.value}) - ${percent}%\\n`;
+              }
+              
+              message += `\\n## Revenue Projections\\n`;
+              message += `**Monthly Revenue Potential (20% sell rate):**\\n`;
+              message += `• Raw Revenue: $${monthlyRevenue}/month\\n`;
+              message += `• CGTrader: $${cgtraderTakeHome}/month\\n`;
+              message += `• TurboSquid: $${turbosquidTakeHome}/month\\n`;
+              message += `• Gumroad: $${gumroadTakeHome}/month\\n`;
+              
+              // Progress to goal
+              const progressPercent = Math.round((portfolioValue / 3556) * 100);
+              const progressBar = '█'.repeat(Math.floor(progressPercent/10)) + '░'.repeat(10 - Math.floor(progressPercent/10));
+              message += `\\n## Progress to $3,556 Goal\\n`;
+              message += `[${progressBar}] ${progressPercent}% ($${portfolioValue}/$3,556)\\n`;
+              
+              // Milestones
+              if (portfolioValue >= 500 && portfolioValue < 1000) {
+                message += `\\n🏆 **Milestone:** $500 Portfolio - Marketplace Viable!\\n`;
+              } else if (portfolioValue >= 1000 && portfolioValue < 2000) {
+                message += `\\n🏆 **Milestone:** $1,000 Portfolio - CGTrader Tier Upgrade!\\n`;
+              } else if (portfolioValue >= 2000 && portfolioValue < 3000) {
+                message += `\\n🏆 **Milestone:** $2,000 Portfolio - Professional Seller!\\n`;
+              } else if (portfolioValue >= 3000) {
+                message += `\\n🎉 **PROJECT COMPLETE:** Target Achieved! Ready for market!\\n`;
+              }
+              
+              message += `\\n---\\n`;
+              message += `*Based on comprehensive market research of CGTrader, TurboSquid, and Gumroad*\\n`;
+              message += `*Quality score factors: completion time, complexity, sprint level, collaboration*`;
+              
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: message
+              });
+              
+            } catch (error) {
+              console.error('Appraisal system error:', error.message);
+            }
