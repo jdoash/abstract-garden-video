@@ -1,0 +1,229 @@
+name: Daily Accountability System
+
+on:
+  schedule:
+    - cron: '0 9 * * *'   # 9 AM daily check-in
+    - cron: '0 17 * * *'  # 5 PM daily review
+    - cron: '0 21 * * *'  # 9 PM reminder if no progress
+  workflow_dispatch:
+
+jobs:
+  morning-check:
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 9 * * *' || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Morning Accountability Check
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Get yesterday's activity
+            const yesterday = new Date(Date.now() - 86400000).toISOString();
+            
+            // Check for any activity yesterday
+            const events = await github.rest.issues.listEventsForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100
+            });
+            
+            const yesterdayEvents = events.data.filter(e => 
+              new Date(e.created_at) > new Date(yesterday)
+            );
+            
+            // Get open in-progress tasks
+            const inProgressIssues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'in-progress',
+              state: 'open'
+            });
+            
+            // Get today's target tasks
+            const todayIssues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'today',
+              state: 'open'
+            });
+            
+            let message = `# 🌅 Daily Stand-Up - ${new Date().toDateString()}\n\n`;
+            
+            // Yesterday's progress
+            if (yesterdayEvents.length === 0) {
+              message += `## ⚠️ NO ACTIVITY DETECTED YESTERDAY\n`;
+              message += `**This is day 1 without progress.**\n\n`;
+              message += `> "The difference between who you are and who you want to be is what you do."\n\n`;
+            } else {
+              message += `## ✅ Yesterday's Activity\n`;
+              message += `- ${yesterdayEvents.length} actions taken\n\n`;
+            }
+            
+            // Today's focus
+            message += `## 🎯 TODAY'S MISSION\n\n`;
+            
+            if (inProgressIssues.data.length > 0) {
+              message += `### Continue These Tasks:\n`;
+              inProgressIssues.data.forEach(issue => {
+                message += `- [ ] **${issue.title}** (#${issue.number})\n`;
+                message += `  - Time to complete this! No excuses.\n`;
+              });
+            } else {
+              message += `### ⚡ START SOMETHING NOW:\n`;
+              message += `You have ZERO tasks in progress. Pick one:\n\n`;
+              
+              // Get high priority tasks
+              const highPriority = await github.rest.issues.listForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                labels: 'high-priority',
+                state: 'open',
+                per_page: 3
+              });
+              
+              highPriority.data.forEach(issue => {
+                message += `- **${issue.title}** (#${issue.number})\n`;
+                message += `  Comment "I'll take this" to start NOW\n`;
+              });
+            }
+            
+            message += `\n## 📊 Accountability Metrics\n`;
+            message += `- Tasks in progress: ${inProgressIssues.data.length}\n`;
+            message += `- Tasks for today: ${todayIssues.data.length}\n`;
+            message += `- Days until deadline: 42\n\n`; // Adjust based on actual deadline
+            
+            message += `## ⏰ Today's Schedule\n`;
+            message += `- **9:00 AM**: Start working (YOU ARE LATE IF NOT STARTED)\n`;
+            message += `- **12:00 PM**: Progress update required\n`;
+            message += `- **5:00 PM**: End of day review\n`;
+            message += `- **9:00 PM**: Final check - consequences if no progress\n\n`;
+            
+            message += `## 🔥 MANDATORY ACTION\n`;
+            message += `**REPLY TO THIS ISSUE** with:\n`;
+            message += `1. Which task you're working on TODAY\n`;
+            message += `2. What you'll complete by 5 PM\n`;
+            message += `3. Any blockers (no excuses accepted)\n\n`;
+            
+            message += `**NO RESPONSE = AUTOMATIC ESCALATION**\n`;
+            
+            // Create daily issue
+            const today = new Date().toISOString().split('T')[0];
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `📢 DAILY CHECK-IN: ${today} - RESPONSE REQUIRED`,
+              body: message,
+              labels: ['daily-standup', 'requires-response'],
+              assignees: ['zacteel'] // Will work once Michael has account
+            });
+            
+  evening-review:
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 17 * * *'
+    steps:
+      - name: Evening Progress Review
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Check today's progress
+            const today = new Date().toISOString().split('T')[0];
+            const todayStart = new Date(today).toISOString();
+            
+            // Get all events from today
+            const events = await github.rest.issues.listEventsForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100
+            });
+            
+            const todayEvents = events.data.filter(e => 
+              new Date(e.created_at) > new Date(todayStart)
+            );
+            
+            // Check closed issues today
+            const closedToday = todayEvents.filter(e => e.event === 'closed').length;
+            
+            let message = `# 📋 End of Day Review - ${new Date().toDateString()}\n\n`;
+            
+            if (closedToday > 0) {
+              message += `## 🎉 SUCCESS! Tasks Completed Today: ${closedToday}\n`;
+              message += `Great job! Keep this momentum going!\n\n`;
+            } else if (todayEvents.length > 0) {
+              message += `## ⚠️ Some Activity But NO COMPLETIONS\n`;
+              message += `You worked but didn't finish anything. This is not acceptable.\n`;
+              message += `**Finish something NOW or explain why.**\n\n`;
+            } else {
+              message += `## 🚨 ZERO PROGRESS DETECTED\n`;
+              message += `**This is completely unacceptable.**\n\n`;
+              message += `You have 4 hours left today. Use them or lose them.\n\n`;
+            }
+            
+            // Calculate weekly stats
+            message += `## 📊 This Week's Reality Check\n`;
+            message += `- Tasks completed this week: ${closedToday}\n`; // Would need to calculate
+            message += `- Current streak: 0 days\n`; // Would track
+            message += `- Time wasted: Too much\n\n`;
+            
+            message += `## 🎯 Evening Challenge\n`;
+            message += `Can you complete just ONE more task before bed?\n`;
+            message += `Prove you want this. Take action NOW.\n`;
+            
+            // Create evening review
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `📊 EOD Review: ${today} - ${closedToday > 0 ? 'Progress Made' : '⚠️ NO PROGRESS'}`,
+              body: message,
+              labels: ['daily-review']
+            });
+            
+  night-escalation:
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 21 * * *'
+    steps:
+      - name: Night-Time Escalation Check
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Final check for the day
+            const today = new Date().toISOString().split('T')[0];
+            const todayStart = new Date(today).toISOString();
+            
+            // Check if any progress was made
+            const events = await github.rest.issues.listEventsForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100
+            });
+            
+            const todayEvents = events.data.filter(e => 
+              new Date(e.created_at) > new Date(todayStart)
+            );
+            
+            if (todayEvents.length === 0) {
+              // No activity all day - serious escalation
+              const message = `# 🔴 CRITICAL ALERT - ZERO PROGRESS TODAY\n\n` +
+                `## This is Day 1 of No Progress\n\n` +
+                `**What happened today?**\n` +
+                `- You didn't complete any tasks\n` +
+                `- You didn't comment on any issues\n` +
+                `- You didn't even TRY\n\n` +
+                `## The Hard Truth\n` +
+                `Every day you don't work is a day your competition gets ahead.\n` +
+                `Every excuse you make is a step backward.\n\n` +
+                `## Your Choice\n` +
+                `1. Start working RIGHT NOW (it's only 9 PM)\n` +
+                `2. Wake up early tomorrow and ACTUALLY work\n` +
+                `3. Give up (but we know you won't)\n\n` +
+                `**This project won't complete itself.**\n` +
+                `**Your future won't build itself.**\n` +
+                `**TAKE ACTION.**`;
+              
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `🚨 URGENT: ${today} - ZERO PROGRESS DETECTED`,
+                body: message,
+                labels: ['escalation', 'critical', 'requires-immediate-action'],
+                assignees: ['zacteel']
+              });
+            }

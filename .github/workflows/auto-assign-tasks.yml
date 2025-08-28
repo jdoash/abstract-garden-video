@@ -1,0 +1,97 @@
+name: Auto-Assign Tasks
+
+on:
+  issues:
+    types: [opened]
+  issue_comment:
+    types: [created]
+
+jobs:
+  auto-assign:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Assign based on comment
+        if: github.event_name == 'issue_comment'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const comment = context.payload.comment.body.toLowerCase();
+            const issue = context.payload.issue;
+            
+            // Auto-assign when someone says "I'll take this" or similar
+            if (comment.includes("i'll take") || comment.includes("assign me") || comment.includes("working on this")) {
+              await github.rest.issues.addAssignees({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                assignees: [context.payload.comment.user.login]
+              });
+              
+              // Add "in-progress" label
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                labels: ['in-progress']
+              });
+              
+              // Post confirmation
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: `🚀 @${context.payload.comment.user.login} is now working on this task!`
+              });
+            }
+            
+            // Mark as complete when someone says "done" or "completed"
+            if (comment.includes("done") || comment.includes("completed") || comment.includes("finished")) {
+              // Remove in-progress, add completed
+              try {
+                await github.rest.issues.removeLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  name: 'in-progress'
+                });
+              } catch (e) {}
+              
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                labels: ['completed']
+              });
+              
+              // Close the issue
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                state: 'closed'
+              });
+              
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: `✅ Great work @${context.payload.comment.user.login}! Task marked as complete.`
+              });
+            }
+            
+            // Request help
+            if (comment.includes("need help") || comment.includes("stuck") || comment.includes("blocked")) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                labels: ['help-wanted', 'blocked']
+              });
+              
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: `🆘 @${context.payload.comment.user.login} needs help with this task! Team, please assist.`
+              });
+            }

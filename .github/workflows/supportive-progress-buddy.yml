@@ -1,0 +1,266 @@
+name: Supportive Progress Buddy
+
+on:
+  schedule:
+    - cron: '0 9 * * *'   # Morning encouragement
+    - cron: '0 14 * * *'  # Afternoon check-in
+    - cron: '0 20 * * *'  # Evening celebration
+  workflow_dispatch:
+  issues:
+    types: [closed, opened, commented]
+
+jobs:
+  morning-motivation:
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 9 * * *' || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Morning Encouragement
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const motivationalQuotes = [
+              "Every expert was once a beginner. Today you're one step closer!",
+              "Progress, not perfection. Even 15 minutes of work counts!",
+              "You've got this! Pick the smallest task and just start.",
+              "Remember why you started this journey. Your future self will thank you.",
+              "One small task today is better than perfect plans for tomorrow.",
+              "The best time to plant a tree was 20 years ago. The second best time is now.",
+              "You don't have to be great to start, but you have to start to be great."
+            ];
+            
+            const quote = motivationalQuotes[Math.floor(Math.random() * motivationalQuotes.length)];
+            
+            // Get the easiest tasks to start with
+            const easyTasks = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'Sprint 1',
+              state: 'open',
+              per_page: 3
+            });
+            
+            let message = `# ☀️ Good Morning! Ready for a Productive Day?\n\n`;
+            message += `> "${quote}"\n\n`;
+            
+            message += `## 🎯 Today's Simple Start\n`;
+            message += `No pressure - just pick ONE thing to work on for 30 minutes:\n\n`;
+            
+            if (easyTasks.data.length > 0) {
+              message += `### 🟢 Easy Wins Available:\n`;
+              easyTasks.data.forEach(issue => {
+                const title = issue.title.replace(/Part \d+ - STEP \d+\.\d+: /, '');
+                message += `- **${title}** (#${issue.number})\n`;
+                message += `  Just comment "Starting this!" to begin\n`;
+              });
+            }
+            
+            message += `\n## 💡 Helpful Tips for Today\n`;
+            message += `- Set a timer for 25 minutes and just focus\n`;
+            message += `- It's okay to ask for help if you're stuck\n`;
+            message += `- Celebrate small wins - they add up!\n`;
+            message += `- Remember: Done is better than perfect\n\n`;
+            
+            message += `## 🤝 Your Support System\n`;
+            message += `- Jesse is here to help with technical questions\n`;
+            message += `- The instructions have all the steps you need\n`;
+            message += `- Each task is broken down into small, manageable pieces\n\n`;
+            
+            message += `**Just pick one task and give it 30 minutes. You can do this!** 💪\n`;
+            
+            const today = new Date().toISOString().split('T')[0];
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `☀️ Daily Motivation: ${today}`,
+              body: message,
+              labels: ['motivation', 'daily-checkin']
+            });
+
+  celebrate-progress:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'issues' && github.event.action == 'closed'
+    steps:
+      - name: Celebrate Completion
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const celebrations = [
+              "🎉 Amazing work! You crushed it!",
+              "🌟 Look at you go! Another one done!",
+              "🚀 You're on fire! Keep this momentum!",
+              "💪 Fantastic job! You're making real progress!",
+              "🏆 Winner! That's how it's done!",
+              "✨ Brilliant! You're getting stronger every day!",
+              "🎯 Nailed it! Your skills are growing!"
+            ];
+            
+            const celebration = celebrations[Math.floor(Math.random() * celebrations.length)];
+            
+            // Count completed tasks
+            const allClosed = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'closed',
+              per_page: 100
+            });
+            
+            const completedCount = allClosed.data.length;
+            
+            let message = `## ${celebration}\n\n`;
+            message += `You just completed: **${issue.title}**\n\n`;
+            message += `### 📊 Your Progress\n`;
+            message += `- Total tasks completed: **${completedCount}** 🏅\n`;
+            message += `- You're ${Math.round((completedCount / 69) * 100)}% through the entire project!\n\n`;
+            
+            // Milestone celebrations
+            if (completedCount === 1) {
+              message += `### 🎊 FIRST TASK COMPLETE!\n`;
+              message += `The hardest step is the first one. You did it!\n`;
+            } else if (completedCount === 5) {
+              message += `### 🎊 5 TASKS DOWN!\n`;
+              message += `You're building momentum. This is just the beginning!\n`;
+            } else if (completedCount === 10) {
+              message += `### 🎊 DOUBLE DIGITS!\n`;
+              message += `10 tasks completed! You're officially on a roll!\n`;
+            } else if (completedCount % 10 === 0) {
+              message += `### 🎊 ${completedCount} TASKS MILESTONE!\n`;
+              message += `Every task brings you closer to mastery!\n`;
+            }
+            
+            message += `\n### 💭 Reflection\n`;
+            message += `- What did you learn from this task?\n`;
+            message += `- What would you like to try next?\n`;
+            message += `- How do you feel about your progress?\n\n`;
+            
+            message += `**Take a moment to appreciate what you've accomplished!** 🌈\n`;
+            message += `When you're ready, pick your next adventure from the task list.\n`;
+            
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              body: message
+            });
+
+  gentle-reminder:
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 14 * * *'
+    steps:
+      - name: Afternoon Check-in
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Check for today's activity
+            const today = new Date().toISOString().split('T')[0];
+            const todayStart = new Date(today).toISOString();
+            
+            const events = await github.rest.issues.listEventsForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 50
+            });
+            
+            const todayEvents = events.data.filter(e => 
+              new Date(e.created_at) > new Date(todayStart)
+            );
+            
+            let message = `# 🌤️ Afternoon Check-in\n\n`;
+            
+            if (todayEvents.length > 0) {
+              message += `## 👏 I see you've been active today!\n`;
+              message += `That's fantastic! Every action counts.\n\n`;
+              message += `### Keep Going!\n`;
+              message += `- Take a 5-minute break if you need one\n`;
+              message += `- Grab some water or a snack\n`;
+              message += `- Then dive back in for another 25 minutes\n`;
+            } else {
+              message += `## 🤗 No worries if you haven't started yet!\n`;
+              message += `The day isn't over. You still have time.\n\n`;
+              message += `### 🚀 Quick Start Options:\n`;
+              message += `1. **Super Easy**: Just read through one task to understand it\n`;
+              message += `2. **Easy**: Open the software mentioned in any Part 1 task\n`;
+              message += `3. **Medium**: Follow the first few steps of any STEP 1.1 task\n\n`;
+              message += `**Remember**: Starting is the hardest part. Once you begin, momentum will carry you!\n`;
+            }
+            
+            message += `\n## 💬 Need Help?\n`;
+            message += `It's totally okay to feel stuck! Here's what you can do:\n`;
+            message += `- Comment "I'm stuck on [describe issue]" on any task\n`;
+            message += `- Break the task into even smaller pieces\n`;
+            message += `- Work for just 10 minutes - that's still progress!\n\n`;
+            
+            message += `**You're not alone in this journey. We're here to support you!** 🤝\n`;
+            
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🌤️ Afternoon Support: ${today}`,
+              body: message,
+              labels: ['support', 'daily-checkin']
+            });
+
+  weekly-reflection:
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 20 * * 5'  # Friday evening
+    steps:
+      - name: Weekly Celebration and Reflection
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Get week's statistics
+            const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+            
+            const events = await github.rest.issues.listEventsForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100
+            });
+            
+            const weekEvents = events.data.filter(e => 
+              new Date(e.created_at) > new Date(weekAgo)
+            );
+            
+            const closedThisWeek = weekEvents.filter(e => e.event === 'closed').length;
+            const commentsThisWeek = weekEvents.filter(e => e.event === 'commented').length;
+            
+            let message = `# 🌟 Weekly Reflection & Celebration\n\n`;
+            message += `## This Week's Journey\n\n`;
+            
+            if (closedThisWeek > 0) {
+              message += `### 🎉 You completed ${closedThisWeek} task(s) this week!\n`;
+              message += `That's real, tangible progress. Be proud of yourself!\n\n`;
+            } else if (commentsThisWeek > 0) {
+              message += `### 💬 You engaged with the project ${commentsThisWeek} times\n`;
+              message += `Engagement is the first step. Next week, let's turn that into completed tasks!\n\n`;
+            } else {
+              message += `### 🌱 This week was a seed-planting week\n`;
+              message += `Sometimes we need time to prepare. Next week is your week to grow!\n\n`;
+            }
+            
+            message += `## 🎯 Small Wins to Celebrate\n`;
+            message += `- You have this system set up\n`;
+            message += `- The project is organized and ready\n`;
+            message += `- Every day is a new opportunity\n`;
+            message += `- You're learning, even when it feels slow\n\n`;
+            
+            message += `## 💭 Weekend Thoughts\n`;
+            message += `- What's one thing you learned this week?\n`;
+            message += `- What would make next week easier?\n`;
+            message += `- What are you most excited to work on?\n\n`;
+            
+            message += `## 🚀 Monday Fresh Start\n`;
+            message += `- Pick your Monday task now (make it easy!)\n`;
+            message += `- Set up your workspace this weekend\n`;
+            message += `- Get excited about what you'll create\n\n`;
+            
+            message += `**Rest well this weekend. You deserve it!** 🌈\n`;
+            message += `**Come back Monday ready to tackle one small task.** 💪\n`;
+            
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🌟 Week ${new Date().toISOString().split('T')[0]} Reflection`,
+              body: message,
+              labels: ['weekly-review', 'celebration']
+            });

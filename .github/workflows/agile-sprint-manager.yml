@@ -1,0 +1,407 @@
+# Agile Sprint Management with Email Notifications
+# FREE GitHub Actions for Neon Tree Music Video Project
+
+name: 🏃 Agile Sprint Manager
+
+on:
+  schedule:
+    # Daily standup reminder at 9 AM EST
+    - cron: '0 14 * * 1-5'
+    # Weekly sprint review Friday 4 PM EST
+    - cron: '0 21 * * 5'
+    # Sprint planning Monday 10 AM EST
+    - cron: '0 15 * * 1'
+  
+  issues:
+    types: [opened, closed, reopened, assigned, unassigned, labeled]
+  
+  project_card:
+    types: [created, moved, deleted]
+  
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Sprint Action'
+        required: true
+        default: 'status'
+        type: choice
+        options:
+          - status
+          - start-sprint
+          - end-sprint
+          - daily-standup
+          - send-reminders
+
+jobs:
+  # ==================== SPRINT TRACKING ====================
+  track-sprint-progress:
+    name: 📊 Track Sprint Progress
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: 📈 Calculate Sprint Metrics
+        uses: actions/github-script@v6
+        with:
+          script: |
+            // Get current sprint milestone
+            const milestones = await github.rest.issues.listMilestones({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open'
+            });
+            
+            const currentSprint = milestones.data[0];
+            if (!currentSprint) return;
+            
+            // Get issues in sprint
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              milestone: currentSprint.number,
+              state: 'all'
+            });
+            
+            // Calculate metrics
+            const total = issues.data.length;
+            const completed = issues.data.filter(i => i.state === 'closed').length;
+            const inProgress = issues.data.filter(i => 
+              i.labels.some(l => l.name === 'doing')
+            ).length;
+            const todo = issues.data.filter(i => 
+              i.labels.some(l => l.name === 'todo')
+            ).length;
+            
+            // Create status report
+            const progress = Math.round((completed / total) * 100);
+            const report = `## 🏃 Sprint ${currentSprint.title} Status
+            
+            📊 **Progress:** ${progress}% Complete
+            
+            ### Task Status:
+            - ✅ **Done:** ${completed} tasks
+            - 🔄 **Doing:** ${inProgress} tasks  
+            - 📝 **Todo:** ${todo} tasks
+            - 📈 **Total:** ${total} tasks
+            
+            ### Burndown:
+            - Days Remaining: ${Math.ceil((new Date(currentSprint.due_on) - new Date()) / 86400000)}
+            - Velocity: ${(completed / 5).toFixed(1)} tasks/day
+            
+            ### Team Performance:
+            ${await getTeamMetrics()}
+            `;
+            
+            // Save to file
+            const fs = require('fs');
+            fs.writeFileSync('sprint-status.md', report);
+            
+            // Update PR comment
+            core.setOutput('sprint-status', report);
+
+      - name: 📧 Email Sprint Status
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: 🏃 Neon Tree - Sprint Status Update
+          to: michael@example.com, your-email@example.com
+          from: Neon Tree Bot
+          html_body: |
+            <h2>Sprint Status Report</h2>
+            ${{ steps.metrics.outputs.sprint-status }}
+            <hr>
+            <p>View details: <a href="${{ github.server_url }}/${{ github.repository }}">GitHub Project</a></p>
+
+  # ==================== DAILY STANDUP ====================
+  daily-standup:
+    name: 📅 Daily Standup
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 14 * * 1-5' || github.event.inputs.action == 'daily-standup'
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: 📋 Generate Standup Report
+        uses: actions/github-script@v6
+        id: standup
+        with:
+          script: |
+            const yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
+            
+            // Get yesterday's completed tasks
+            const completed = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'closed',
+              since: yesterday.toISOString()
+            });
+            
+            // Get today's tasks (in progress)
+            const doing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'doing'
+            });
+            
+            // Get blocked tasks
+            const blocked = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'blocked'
+            });
+            
+            const report = `# 📅 Daily Standup - ${new Date().toLocaleDateString()}
+            
+            ## ✅ Yesterday's Completed Tasks
+            ${completed.data.map(i => `- [x] #${i.number}: ${i.title}`).join('\n')}
+            
+            ## 🔄 Today's Focus (Doing)
+            ${doing.data.map(i => `- [ ] #${i.number}: ${i.title} (@${i.assignee?.login || 'unassigned'})`).join('\n')}
+            
+            ## 🚫 Blockers
+            ${blocked.data.map(i => `- ⚠️ #${i.number}: ${i.title}`).join('\n')}
+            
+            ## 📊 Sprint Progress
+            View board: [Project Board](https://github.com/${{ github.repository }}/projects/1)
+            `;
+            
+            core.setOutput('standup-report', report);
+            return report;
+
+      - name: 📧 Send Standup Email
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: 📅 Daily Standup - Neon Tree Project
+          to: michael@example.com, your-email@example.com
+          from: Neon Tree Bot
+          body: ${{ steps.standup.outputs.standup-report }}
+          convert_markdown: true
+
+  # ==================== TASK MANAGEMENT ====================
+  manage-task-labels:
+    name: 🏷️ Auto-label Tasks
+    runs-on: ubuntu-latest
+    if: github.event_name == 'issues' || github.event_name == 'project_card'
+    steps:
+      - name: 🏷️ Apply Status Labels
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const issue = context.payload.issue;
+            if (!issue) return;
+            
+            // Remove old status labels
+            const statusLabels = ['todo', 'doing', 'done', 'blocked'];
+            for (const label of statusLabels) {
+              try {
+                await github.rest.issues.removeLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  name: label
+                });
+              } catch (e) {}
+            }
+            
+            // Add new status based on project column
+            const projectCard = context.payload.project_card;
+            if (projectCard) {
+              const column = await github.rest.projects.getColumn({
+                column_id: projectCard.column_id
+              });
+              
+              let label = 'todo';
+              if (column.data.name.toLowerCase().includes('progress')) label = 'doing';
+              if (column.data.name.toLowerCase().includes('done')) label = 'done';
+              if (column.data.name.toLowerCase().includes('blocked')) label = 'blocked';
+              
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                labels: [label]
+              });
+            }
+
+  # ==================== SPRINT CEREMONIES ====================
+  sprint-planning:
+    name: 📝 Sprint Planning
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 15 * * 1' || github.event.inputs.action == 'start-sprint'
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: 🎯 Create Sprint Milestone
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const sprintNumber = new Date().getWeek(); // Custom week number
+            const endDate = new Date();
+            endDate.setDate(endDate.getDate() + 14); // 2-week sprints
+            
+            const milestone = await github.rest.issues.createMilestone({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Sprint ${sprintNumber}`,
+              due_on: endDate.toISOString(),
+              description: `Sprint Goals:
+              - Complete modeling phase
+              - Begin animation
+              - Set up rendering pipeline`
+            });
+            
+            core.setOutput('sprint-number', sprintNumber);
+
+      - name: 📧 Send Sprint Planning Email
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: 🎯 New Sprint Started - Neon Tree Project
+          to: michael@example.com, your-email@example.com
+          from: Neon Tree Bot
+          body: |
+            # Sprint ${{ steps.create-sprint.outputs.sprint-number }} Started!
+            
+            ## Sprint Planning Session
+            - Review backlog items
+            - Assign story points
+            - Commit to sprint goals
+            
+            Join planning: [GitHub Project Board](https://github.com/${{ github.repository }}/projects/1)
+
+  sprint-review:
+    name: 🎉 Sprint Review
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 21 * * 5' || github.event.inputs.action == 'end-sprint'
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: 📊 Generate Sprint Report
+        uses: actions/github-script@v6
+        id: review
+        with:
+          script: |
+            // Get completed milestone
+            const milestones = await github.rest.issues.listMilestones({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open'
+            });
+            
+            const sprint = milestones.data[0];
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              milestone: sprint.number,
+              state: 'all'
+            });
+            
+            const completed = issues.data.filter(i => i.state === 'closed');
+            const incomplete = issues.data.filter(i => i.state === 'open');
+            
+            const report = `# Sprint ${sprint.title} Review
+            
+            ## ✅ Completed Stories
+            ${completed.map(i => `- ${i.title}`).join('\n')}
+            
+            ## ❌ Incomplete Stories (Move to next sprint)
+            ${incomplete.map(i => `- ${i.title}`).join('\n')}
+            
+            ## 📈 Velocity
+            - Planned: ${issues.data.length} stories
+            - Completed: ${completed.length} stories
+            - Success Rate: ${Math.round((completed.length/issues.data.length)*100)}%
+            
+            ## 🎯 Next Sprint
+            - Carry over ${incomplete.length} stories
+            - Add new stories from backlog
+            `;
+            
+            core.setOutput('review-report', report);
+
+      - name: 📧 Send Sprint Review Email
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: 🎉 Sprint Review - Neon Tree Project
+          to: michael@example.com, your-email@example.com
+          from: Neon Tree Bot
+          body: ${{ steps.review.outputs.review-report }}
+          convert_markdown: true
+
+  # ==================== TASK REMINDERS ====================
+  send-reminders:
+    name: 📧 Send Task Reminders
+    runs-on: ubuntu-latest
+    if: github.event.inputs.action == 'send-reminders'
+    steps:
+      - name: 🔔 Check Overdue Tasks
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'doing'
+            });
+            
+            const now = new Date();
+            const overdue = issues.data.filter(i => {
+              if (!i.milestone?.due_on) return false;
+              return new Date(i.milestone.due_on) < now;
+            });
+            
+            if (overdue.length > 0) {
+              // Send reminder for each overdue task
+              for (const issue of overdue) {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  body: `⏰ Reminder: This task is overdue! Please update status or request help if blocked.`
+                });
+              }
+            }
+
+  # ==================== PROJECT BOARD AUTOMATION ====================
+  update-project-board:
+    name: 📋 Update Project Board
+    runs-on: ubuntu-latest
+    if: github.event_name == 'issues'
+    steps:
+      - name: 🔄 Move Cards Based on Labels
+        uses: alex-page/github-project-automation-plus@v0.8.3
+        with:
+          project: Neon Tree Production
+          column: To Do
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: ✅ Auto-close completed tasks
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const issue = context.payload.issue;
+            if (issue.labels.some(l => l.name === 'done')) {
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                state: 'closed'
+              });
+            }

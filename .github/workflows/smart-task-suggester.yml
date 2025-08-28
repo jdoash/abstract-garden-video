@@ -1,0 +1,193 @@
+name: Smart Task Suggester
+
+on:
+  schedule:
+    - cron: '30 8 * * 1-5'  # Weekday mornings
+  workflow_dispatch:
+  issue_comment:
+    types: [created]
+
+jobs:
+  suggest-next-task:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Analyze and Suggest Next Task
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Smart task suggestion based on progress patterns
+            
+            // Get completed tasks to understand skill level
+            const closedIssues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'closed',
+              per_page: 100
+            });
+            
+            // Get open tasks
+            const openIssues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 100
+            });
+            
+            // Analyze patterns
+            const completedParts = new Set();
+            const completedSteps = new Set();
+            
+            closedIssues.data.forEach(issue => {
+              const title = issue.title;
+              if (title.includes('Part')) {
+                const partMatch = title.match(/Part (\d+)/);
+                if (partMatch) completedParts.add(parseInt(partMatch[1]));
+                
+                const stepMatch = title.match(/STEP (\d+\.\d+)/);
+                if (stepMatch) completedSteps.add(stepMatch[1]);
+              }
+            });
+            
+            // Find best next task
+            let suggestedTasks = [];
+            
+            // Prioritize continuation of started parts
+            openIssues.data.forEach(issue => {
+              const title = issue.title;
+              const labels = issue.labels.map(l => l.name);
+              
+              // Score each task
+              let score = 0;
+              
+              // Prefer Sprint 1 tasks
+              if (labels.includes('Sprint 1')) score += 30;
+              
+              // Prefer tasks from parts we've started
+              const partMatch = title.match(/Part (\d+)/);
+              if (partMatch) {
+                const part = parseInt(partMatch[1]);
+                if (completedParts.has(part)) {
+                  score += 20; // Continue what we started
+                } else if (part === Math.min(...Array.from(completedParts)) + 1) {
+                  score += 15; // Next logical part
+                }
+              }
+              
+              // Prefer STEP x.1 tasks (start of sequence)
+              if (title.includes('STEP') && title.includes('.1:')) {
+                score += 10;
+              }
+              
+              // High priority gets boost
+              if (labels.includes('high-priority')) score += 25;
+              
+              // Installation tasks first if nothing completed
+              if (closedIssues.data.length === 0 && title.toLowerCase().includes('install')) {
+                score += 50;
+              }
+              
+              suggestedTasks.push({
+                issue: issue,
+                score: score,
+                reason: this.getReasonForScore(title, labels, completedParts)
+              });
+            });
+            
+            // Sort by score
+            suggestedTasks.sort((a, b) => b.score - a.score);
+            const top3 = suggestedTasks.slice(0, 3);
+            
+            // Create personalized message
+            let message = `# 🎯 Your Personalized Task Suggestions\n\n`;
+            message += `Based on your progress, here are the best tasks to tackle next:\n\n`;
+            
+            if (closedIssues.data.length === 0) {
+              message += `## 🚀 Let's Get Started!\n`;
+              message += `Since you're just beginning, I've picked the absolute easiest tasks:\n\n`;
+            } else {
+              message += `## 📈 Building on Your Success\n`;
+              message += `You've completed ${closedIssues.data.length} tasks! Here's what makes sense next:\n\n`;
+            }
+            
+            top3.forEach((item, index) => {
+              const issue = item.issue;
+              const emoji = ['🥇', '🥈', '🥉'][index];
+              
+              message += `### ${emoji} Recommendation ${index + 1}: ${issue.title}\n`;
+              message += `**Why this task?** ${item.reason}\n`;
+              message += `**Issue:** #${issue.number}\n`;
+              message += `**How to start:** Comment "I'll take this" on the issue\n\n`;
+              
+              // Add specific tips
+              if (issue.title.toLowerCase().includes('install')) {
+                message += `💡 **Tip**: Set aside 2 hours, follow each step exactly as written\n`;
+              } else if (issue.title.includes('STEP 1')) {
+                message += `💡 **Tip**: This is a beginning task - perfect for building confidence!\n`;
+              } else if (issue.title.includes('model')) {
+                message += `💡 **Tip**: Take your time with modeling, it's okay to be slow at first\n`;
+              }
+              message += `\n`;
+            });
+            
+            message += `## 🎲 Feeling Adventurous?\n`;
+            message += `If none of these appeal to you, here's a random fun task:\n`;
+            
+            // Pick a random open task
+            const randomTask = openIssues.data[Math.floor(Math.random() * openIssues.data.length)];
+            if (randomTask) {
+              message += `- **${randomTask.title}** (#${randomTask.number})\n`;
+              message += `Sometimes a random challenge is exactly what we need!\n`;
+            }
+            
+            message += `\n## 💪 Your Progress Momentum\n`;
+            if (closedIssues.data.length > 0) {
+              // Calculate momentum
+              const lastWeek = new Date(Date.now() - 7 * 86400000);
+              const recentClosed = closedIssues.data.filter(i => 
+                new Date(i.closed_at) > lastWeek
+              ).length;
+              
+              if (recentClosed > 3) {
+                message += `🔥 You're ON FIRE! ${recentClosed} tasks completed this week!\n`;
+              } else if (recentClosed > 0) {
+                message += `📈 You've got momentum with ${recentClosed} task(s) this week. Keep going!\n`;
+              } else {
+                message += `🌱 Time to restart your momentum. Even one task today makes a difference!\n`;
+              }
+            } else {
+              message += `🌟 Your journey starts with a single task. Today could be that day!\n`;
+            }
+            
+            message += `\n---\n`;
+            message += `*This suggestion was personalized based on your completion history and current progress.*\n`;
+            
+            // Create suggestion issue
+            const today = new Date().toISOString().split('T')[0];
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🎯 Smart Suggestions for ${today}`,
+              body: message,
+              labels: ['task-suggestion', 'personalized']
+            });
+            
+            },
+            getReasonForScore: function(title, labels, completedParts) {
+              if (title.toLowerCase().includes('install')) {
+                return "Foundation task - essential for everything else";
+              }
+              if (labels.includes('high-priority')) {
+                return "Marked as high priority - important for project success";
+              }
+              if (title.includes('.1:')) {
+                return "First step in a sequence - good starting point";
+              }
+              const partMatch = title.match(/Part (\d+)/);
+              if (partMatch && completedParts.has(parseInt(partMatch[1]))) {
+                return "Continues a part you've already started";
+              }
+              if (labels.includes('Sprint 1')) {
+                return "Part of Sprint 1 - foundational learning";
+              }
+              return "Matches your current skill level";
+            }
