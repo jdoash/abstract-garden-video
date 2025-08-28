@@ -321,10 +321,20 @@
         // Fetch data from GitHub API
         async function fetchDashboardData() {
             try {
-                const repo = 'Studio-Dashosa/abstract-garden-video';
+                const repo = 'jdoash/abstract-garden-video';
                 
-                // Fetch all issues
-                const issuesResponse = await fetch(`https://api.github.com/repos/${repo}/issues?state=all&per_page=100`);
+                // Fetch all issues from public repository
+                const issuesResponse = await fetch(`https://api.github.com/repos/${repo}/issues?state=all&per_page=100`, {
+                    headers: {
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                });
+                
+                // Check if we got a valid response
+                if (!issuesResponse.ok) {
+                    throw new Error(`GitHub API Error: ${issuesResponse.status}`);
+                }
+                
                 const issues = await issuesResponse.json();
                 
                 // Calculate stats
