@@ -1,0 +1,288 @@
+name: Installation Task Value System
+
+on:
+  issues:
+    types: [closed]
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  value-installation:
+    runs-on: ubuntu-latest
+    if: github.event.action == 'closed'
+    steps:
+      - name: Calculate Installation and Setup Value
+        uses: actions/github-script@v7
+        with:
+          script: |
+            try {
+              const issue = context.payload.issue;
+              const title = issue.title.toLowerCase();
+              
+              // INSTALLATION TASKS - Each has concrete market value
+              const installationValues = {
+                // Core Software Installations
+                'install python': {
+                  base: 85,
+                  memory: "Guido van Rossum built Python on ABC's foundation at CWI Amsterdam (1989)",
+                  marketValue: "Python automation scripts sell for $50-150 on Gumroad",
+                  unlocks: "Scripting, automation, pipeline tools"
+                },
+                
+                'install maya': {
+                  base: 125,
+                  memory: "Maya traces back to Alias PowerAnimator used for Terminator 2 (1991)",
+                  marketValue: "Maya-ready assets command 30% premium on TurboSquid",
+                  unlocks: "Professional 3D modeling, animation, rigging"
+                },
+                
+                'install blender': {
+                  base: 95,
+                  memory: "Ton Roosendaal made Blender free with €100,000 community fund (2002)",
+                  marketValue: "Blender assets dominate 40% of CGTrader market",
+                  unlocks: "Full 3D pipeline, Cycles rendering, Geometry Nodes"
+                },
+                
+                'install houdini': {
+                  base: 145,
+                  memory: "Side Effects' PRISMS became Houdini, powering Marvel VFX since 1996",
+                  marketValue: "Houdini digital assets (HDAs) sell for $200-500",
+                  unlocks: "Procedural workflows, VFX, simulations"
+                },
+                
+                'install zbrush': {
+                  base: 115,
+                  memory: "Pixologic revolutionized digital sculpting with 2.5D painting (1999)",
+                  marketValue: "ZBrush sculpts essential for $100+ character models",
+                  unlocks: "High-poly sculpting, detail maps, organic modeling"
+                },
+                
+                'install substance': {
+                  base: 105,
+                  memory: "Allegorithmic democratized PBR texturing before Adobe acquisition (2019)",
+                  marketValue: "Substance materials sell for $25-75 per pack",
+                  unlocks: "PBR texturing, procedural materials, texture baking"
+                },
+                
+                'install unreal': {
+                  base: 135,
+                  memory: "Tim Sweeney open-sourced Unreal after Fortnite success",
+                  marketValue: "Unreal-ready assets have 50% higher sales volume",
+                  unlocks: "Real-time rendering, virtual production, game assets"
+                },
+                
+                'install unity': {
+                  base: 95,
+                  memory: "Unity democratized game development from Denmark (2005)",
+                  marketValue: "Unity assets largest market segment at $2.5B annually",
+                  unlocks: "Game development, AR/VR, interactive content"
+                },
+                
+                'install nuke': {
+                  base: 165,
+                  memory: "Digital Domain's in-house tool became industry standard compositing",
+                  marketValue: "Nuke gizmos and toolsets sell for $100-300",
+                  unlocks: "Professional compositing, VFX pipeline"
+                },
+                
+                'install after effects': {
+                  base: 85,
+                  memory: "CoSA's breakthrough brought motion graphics to desktop (1993)",
+                  marketValue: "AE templates dominate motion graphics market",
+                  unlocks: "Motion graphics, 2D animation, compositing"
+                },
+                
+                'install photoshop': {
+                  base: 75,
+                  memory: "Knoll brothers' display program became creative industry foundation (1988)",
+                  marketValue: "Texture creation essential for all 3D assets",
+                  unlocks: "Texture painting, photo manipulation, concept art"
+                },
+                
+                // Development Tools
+                'install git': {
+                  base: 65,
+                  memory: "Linus Torvalds created Git in 2 weeks for Linux kernel (2005)",
+                  marketValue: "Version control enables collaboration and asset updates",
+                  unlocks: "Version control, collaboration, update distribution"
+                },
+                
+                'install vscode': {
+                  base: 55,
+                  memory: "Microsoft's Electron-based editor became most popular IDE",
+                  marketValue: "Code tools and extensions have dedicated marketplaces",
+                  unlocks: "Code editing, debugging, extension ecosystem"
+                },
+                
+                'install docker': {
+                  base: 95,
+                  memory: "Solomon Hykes revolutionized deployment with containers (2013)",
+                  marketValue: "Containerized pipelines sell as enterprise solutions",
+                  unlocks: "Reproducible environments, cloud rendering"
+                },
+                
+                // Utility Installations
+                'install ffmpeg': {
+                  base: 45,
+                  memory: "Fabrice Bellard's FFmpeg powers all video on internet (2000)",
+                  marketValue: "Video processing scripts save hours of render time",
+                  unlocks: "Video conversion, streaming, format compatibility"
+                },
+                
+                'install imagemagick': {
+                  base: 35,
+                  memory: "John Cristy's ImageMagick processes billions of images daily",
+                  marketValue: "Batch processing tools essential for texture libraries",
+                  unlocks: "Image processing, batch conversion, automation"
+                },
+                
+                // Generic patterns
+                'install': {
+                  base: 25,
+                  memory: "Every tool installed expands creative possibility",
+                  marketValue: "Tool proficiency increases asset value 10-30%",
+                  unlocks: "New capabilities"
+                },
+                
+                'setup': {
+                  base: 35,
+                  memory: "Configuration is half the battle in production pipelines",
+                  marketValue: "Optimized pipelines reduce production cost 40%",
+                  unlocks: "Efficient workflows"
+                },
+                
+                'configure': {
+                  base: 45,
+                  memory: "Customization turns tools into personal instruments",
+                  marketValue: "Custom configurations sell as workflow packages",
+                  unlocks: "Personalized efficiency"
+                }
+              };
+              
+              // Find the installation value
+              let taskData = installationValues['install']; // default
+              
+              // Check for specific installations
+              for (const [key, data] of Object.entries(installationValues)) {
+                if (title.includes(key)) {
+                  taskData = data;
+                  break;
+                }
+              }
+              
+              // Calculate total value including indirect benefits
+              const directValue = taskData.base;
+              const indirectValue = Math.round(directValue * 0.5); // Future capability value
+              const totalValue = directValue + indirectValue;
+              
+              // Get portfolio status
+              const allClosed = await github.rest.issues.listForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: 'closed',
+                per_page: 100
+              });
+              
+              // Count installations vs creations
+              let installations = 0;
+              let creations = 0;
+              let totalPortfolioValue = 0;
+              
+              for (const task of allClosed.data) {
+                const taskTitle = task.title.toLowerCase();
+                if (taskTitle.includes('install') || taskTitle.includes('setup') || taskTitle.includes('configure')) {
+                  installations++;
+                  // Find value
+                  for (const [key, data] of Object.entries(installationValues)) {
+                    if (taskTitle.includes(key)) {
+                      totalPortfolioValue += data.base;
+                      break;
+                    }
+                  }
+                } else {
+                  creations++;
+                  totalPortfolioValue += 75; // average creation value
+                }
+              }
+              
+              // Foundation multiplier - installations make creations more valuable
+              const foundationMultiplier = 1 + (installations * 0.05); // 5% per tool
+              const adjustedPortfolioValue = Math.round(totalPortfolioValue * foundationMultiplier);
+              
+              // Create installation value report
+              let message = `# 🔧 INSTALLATION VALUE REPORT\\n\\n`;
+              
+              message += `## Task: ${issue.title}\\n`;
+              message += `**Type:** ${title.includes('install') ? 'Software Installation' : 'Configuration'}\\n\\n`;
+              
+              message += `## Direct Value\\n`;
+              message += `💰 **Base Value:** $${directValue}\\n`;
+              message += `📈 **Future Capability Value:** $${indirectValue}\\n`;
+              message += `✨ **Total Value:** $${totalValue}\\n\\n`;
+              
+              message += `## What This Unlocks\\n`;
+              message += `**Capabilities:** ${taskData.unlocks}\\n`;
+              message += `**Market Impact:** ${taskData.marketValue}\\n\\n`;
+              
+              message += `## Historical Context\\n`;
+              message += `*"${taskData.memory}"*\\n\\n`;
+              
+              message += `## Foundation Status\\n`;
+              message += `**Tools Installed:** ${installations}\\n`;
+              message += `**Assets Created:** ${creations}\\n`;
+              message += `**Foundation Multiplier:** ${foundationMultiplier.toFixed(2)}x\\n\\n`;
+              
+              message += `Each tool adds 5% to all asset values:\\n`;
+              message += `• Base Portfolio: $${totalPortfolioValue}\\n`;
+              message += `• With Tool Bonus: $${adjustedPortfolioValue}\\n`;
+              message += `• Monthly Potential: $${Math.round(adjustedPortfolioValue * 0.2)}/mo\\n\\n`;
+              
+              // Tool synergies
+              if (installations >= 3) {
+                message += `## 🔗 Tool Synergies Unlocked\\n`;
+                
+                if (title.includes('python') && installations > 5) {
+                  message += `• **Pipeline Automation**: Python + Maya/Blender/Houdini\\n`;
+                  message += `  Value: +$200 for automated workflows\\n`;
+                }
+                
+                if (title.includes('substance') && installations > 7) {
+                  message += `• **PBR Pipeline**: Substance + 3D Software + Renderer\\n`;
+                  message += `  Value: +$150 for complete material workflows\\n`;
+                }
+                
+                if (title.includes('git') && installations > 4) {
+                  message += `• **Version Control**: Git enables asset updates and collaboration\\n`;
+                  message += `  Value: +30% on all updateable assets\\n`;
+                }
+                
+                message += `\\n`;
+              }
+              
+              // Installation achievements
+              if (installations === 1) {
+                message += `🎯 **First Tool**: The journey begins!\\n`;
+              } else if (installations === 5) {
+                message += `🏆 **Toolkit Builder**: Core pipeline established!\\n`;
+              } else if (installations === 10) {
+                message += `⚡ **Full Stack**: Complete production capability unlocked!\\n`;
+              } else if (installations === 15) {
+                message += `🌟 **Master Pipeline**: Studio-level toolkit achieved!\\n`;
+              }
+              
+              message += `\\n---\\n`;
+              message += `*Installing software isn't overhead - it's investment.*\\n`;
+              message += `*Every tool multiplies the value of everything you create with it.*`;
+              
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: message
+              });
+              
+            } catch (error) {
+              console.error('Installation value error:', error.message);
+            }
