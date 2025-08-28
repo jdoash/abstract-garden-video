@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Abstract Garden - Progress Dashboard</title>
+    <title>Abstract Garden - 3D Learning Dashboard</title>
     <style>
         * {
             margin: 0;
@@ -312,7 +312,7 @@
         </div>
 
         <!-- Call to Action -->
-        <a href="https://github.com/jdoash/abstract-garden-video/issues?q=is%3Aissue+is%3Aopen+label%3A%22Sprint+1%22" class="cta-button">
+        <a href="https://github.com/Studio-Dashosa/abstract-garden-video/issues?q=is%3Aissue+is%3Aopen+label%3A%22Sprint+1%22" class="cta-button">
             Start Sprint 1 Tasks →
         </a>
     </div>
@@ -321,7 +321,7 @@
         // Fetch data from GitHub API
         async function fetchDashboardData() {
             try {
-                const repo = 'jdoash/abstract-garden-video';
+                const repo = 'Studio-Dashosa/abstract-garden-video';
                 
                 // Fetch all issues
                 const issuesResponse = await fetch(`https://api.github.com/repos/${repo}/issues?state=all&per_page=100`);
