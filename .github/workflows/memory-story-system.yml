@@ -43,7 +43,7 @@ jobs:
                 
                 // HOUDINI - L-systems from Aristid Lindenmayer (1968)
                 'install houdini': {
-                  quote: "Nature's complexity emerges from simple recursive rules" - Aristid Lindenmayer, 1968",
+                  quote: "Nature's complexity emerges from simple recursive rules - Aristid Lindenmayer, 1968",
                   memory: "Lindenmayer's botanical L-systems (1968) became Houdini's procedural foundation for creating organic forms",
                   value: 55,
                   fragment: "BOTANICAL_RECURSION"
@@ -51,7 +51,7 @@ jobs:
                 
                 // PYTHON - Lambert Meertens' ABC influence
                 'python': {
-                  quote: "Readability counts. Complex is better than complicated" - Tim Peters channeling ABC's philosophy",
+                  quote: "Readability counts. Complex is better than complicated - Tim Peters channeling ABC's philosophy",
                   memory: "Lambert Meertens' ABC language at CWI Amsterdam taught Guido van Rossum that code should read like English",
                   value: 65,
                   fragment: "ABC_READABILITY"
@@ -59,7 +59,7 @@ jobs:
                 
                 // TEXTURING - Bui Tuong Phong's shading (1973)
                 'texture': {
-                  quote: "The appearance of reality requires understanding how light behaves on surfaces" - Bui Tuong Phong, 1973",
+                  quote: "The appearance of reality requires understanding how light behaves on surfaces - Bui Tuong Phong, 1973",
                   memory: "Vietnamese computer scientist Phong's shading model at University of Utah became foundation of all modern rendering",
                   value: 65,
                   fragment: "PHONG_ILLUMINATION"
@@ -67,7 +67,7 @@ jobs:
                 
                 // SHADERS - Pixar's RenderMan & Pat Hanrahan
                 'shader': {
-                  quote: "Shading languages let artists program light itself" - Pat Hanrahan, RenderMan architect, 1988",
+                  quote: "Shading languages let artists program light itself - Pat Hanrahan, RenderMan architect, 1988",
                   memory: "Pat Hanrahan's RenderMan shading language at Pixar revolutionized how we describe materials mathematically",
                   value: 85,
                   fragment: "RENDERMAN_LIGHT"
@@ -75,7 +75,7 @@ jobs:
                 
                 // RIGGING - Burtnyk & Wein's skeleton animation (1976)
                 'rig': {
-                  quote: "Character animation requires understanding anatomy's constraints" - Burtnyk & Wein, 1976",
+                  quote: "Character animation requires understanding anatomy's constraints - Burtnyk & Wein, 1976",
                   memory: "Nestor Burtnyk and Marceli Wein invented skeletal animation at National Research Council Canada",
                   value: 115,
                   fragment: "SKELETON_PATENT"
@@ -83,7 +83,7 @@ jobs:
                 
                 // ANIMATION - Lasseter's Principles from Disney
                 'animate': {
-                  quote: "The art challenges the technology, and the technology inspires the art" - John Lasseter via Disney's 12 principles",
+                  quote: "The art challenges the technology, and the technology inspires the art - John Lasseter via Disney's 12 principles",
                   memory: "John Lasseter brought Disney's 12 principles of animation into computer graphics at Pixar",
                   value: 135,
                   fragment: "TWELVE_PRINCIPLES"
@@ -91,7 +91,7 @@ jobs:
                 
                 // PARTICLES - Reeves' Genesis Effect (1982)
                 'particle': {
-                  quote: "Particle systems model fuzzy objects - fire, water, grass - things that are alive" - William Reeves, 1983",
+                  quote: "Particle systems model fuzzy objects - fire, water, grass - things that are alive - William Reeves, 1983",
                   memory: "Bill Reeves created particle systems for Star Trek II's Genesis Effect at Lucasfilm",
                   value: 85,
                   fragment: "GENESIS_EFFECT"
@@ -99,7 +99,7 @@ jobs:
                 
                 // DYNAMICS - Baraff's physics simulation
                 'dynamic': {
-                  quote: "Physical simulation requires solving differential equations in real-time" - David Baraff, 1989",
+                  quote: "Physical simulation requires solving differential equations in real-time - David Baraff, 1989",
                   memory: "David Baraff's rigid body dynamics at Carnegie Mellon made physics simulation practical for animation",
                   value: 95,
                   fragment: "RIGID_BODY_SOLVER"
@@ -107,7 +107,7 @@ jobs:
                 
                 // ENVIRONMENT - Perlin Noise (1985)
                 'environment': {
-                  quote: "Natural irregularity needs controlled randomness" - Ken Perlin, 1985",
+                  quote: "Natural irregularity needs controlled randomness - Ken Perlin, 1985",
                   memory: "Ken Perlin invented Perlin noise for Tron (1982), creating procedural textures that feel organic",
                   value: 185,
                   fragment: "PERLIN_TRON"
@@ -115,7 +115,7 @@ jobs:
                 
                 // RENDERING - Kajiya's Rendering Equation (1986)
                 'render': {
-                  quote: "Light transport can be expressed as a single integral equation" - James Kajiya, 1986",
+                  quote: "Light transport can be expressed as a single integral equation - James Kajiya, 1986",
                   memory: "Jim Kajiya's rendering equation unified all of computer graphics into one mathematical framework",
                   value: 55,
                   fragment: "RENDERING_EQUATION"
@@ -123,7 +123,7 @@ jobs:
                 
                 // COMPOSITING - Porter & Duff's Alpha (1984)
                 'composite': {
-                  quote: "Alpha isn't just transparency - it's the algebra of image combination" - Porter & Duff, 1984",
+                  quote: "Alpha isn't just transparency - it's the algebra of image combination - Porter & Duff, 1984",
                   memory: "Tom Porter and Tom Duff at Lucasfilm created alpha compositing, enabling all modern VFX",
                   value: 95,
                   fragment: "ALPHA_ALGEBRA"
@@ -131,7 +131,7 @@ jobs:
                 
                 // UV MAPPING - Catmull's Texture Mapping (1974)
                 'uv': {
-                  quote: "Wrapping 2D images onto 3D surfaces requires mathematical unwrapping" - Ed Catmull, 1974",
+                  quote: "Wrapping 2D images onto 3D surfaces requires mathematical unwrapping - Ed Catmull, 1974",
                   memory: "Ed Catmull's PhD thesis on texture mapping became Pixar's foundation and earned him a Turing Award",
                   value: 45,
                   fragment: "CATMULL_THESIS"
@@ -139,7 +139,7 @@ jobs:
                 
                 // PROCEDURAL - Musgrave's Fractal Landscapes
                 'procedural': {
-                  quote: "Fractals are nature's programming language" - Ken Musgrave, 1989",
+                  quote: "Fractals are nature's programming language - Ken Musgrave, 1989",
                   memory: "Ken Musgrave applied Mandelbrot's fractals to create infinite procedural worlds",
                   value: 105,
                   fragment: "FRACTAL_WORLDS"
@@ -147,7 +147,7 @@ jobs:
                 
                 // MODELING - Bezier Curves from Renault (1962)
                 'model': {
-                  quote: "Mathematics can describe the smooth curves of a car body" - Pierre Bézier at Renault, 1962",
+                  quote: "Mathematics can describe the smooth curves of a car body - Pierre Bézier at Renault, 1962",
                   memory: "Pierre Bézier developed curves for car design at Renault, revolutionizing all digital modeling",
                   value: 75,
                   fragment: "BEZIER_RENAULT"
@@ -155,14 +155,14 @@ jobs:
                 
                 // GEOMETRY & BASIC CREATION
                 'geometry': {
-                  quote: "Geometry is the archetype of the beauty of the world" - Johannes Kepler, 1619",
+                  quote: "Geometry is the archetype of the beauty of the world - Johannes Kepler, 1619",
                   memory: "From Euclid to NURBS, geometry remains the foundation of digital form",
                   value: 45,
                   fragment: "EUCLIDEAN_BASE"
                 },
                 
                 'base': {
-                  quote: "Start with simple shapes and the complexity will emerge" - John Whitney Sr., computer animation pioneer",
+                  quote: "Start with simple shapes and the complexity will emerge - John Whitney Sr., computer animation pioneer",
                   memory: "Whitney's analog computer animations in the 1960s proved simple math creates complex beauty",
                   value: 35,
                   fragment: "WHITNEY_HARMONICS"
@@ -170,7 +170,7 @@ jobs:
                 
                 // TESTING & VALIDATION
                 'test': {
-                  quote: "The purpose of computing is insight, not numbers" - Richard Hamming, 1962",
+                  quote: "The purpose of computing is insight, not numbers - Richard Hamming, 1962",
                   memory: "Hamming's error-correcting codes make digital creation reliable",
                   value: 30,
                   fragment: "HAMMING_VALIDATION"
@@ -178,14 +178,14 @@ jobs:
                 
                 // EXPORT & INTERCHANGE
                 'export': {
-                  quote: "Standards are agreements that make creativity portable" - Autodesk FBX team",
+                  quote: "Standards are agreements that make creativity portable - Autodesk FBX team",
                   memory: "Kaydara's FilmBox became FBX, the universal language of 3D interchange",
                   value: 40,
                   fragment: "FBX_UNIVERSAL"
                 },
                 
                 'fbx': {
-                  quote: "Interoperability is freedom" - Alias|Wavefront OpenAlias initiative",
+                  quote: "Interoperability is freedom - Alias|Wavefront OpenAlias initiative",
                   memory: "FBX format enables assets to live across all platforms and softwares",
                   value: 45,
                   fragment: "FILMBOX_BRIDGE"
@@ -193,14 +193,14 @@ jobs:
                 
                 // SMOOTHING & REFINEMENT  
                 'smooth': {
-                  quote: "Nature abhors sharp corners" - Catmull-Clark subdivision, 1978",
+                  quote: "Nature abhors sharp corners - Catmull-Clark subdivision, 1978",
                   memory: "Ed Catmull and Jim Clark's subdivision surfaces made organic CG possible",
                   value: 55,
                   fragment: "CATMULL_CLARK"
                 },
                 
                 'refine': {
-                  quote: "God is in the details" - Mies van der Rohe, adapted to CG",
+                  quote: "God is in the details - Mies van der Rohe, adapted to CG",
                   memory: "Refinement transforms good models into great assets",
                   value: 60,
                   fragment: "DETAIL_DIVINITY"
@@ -208,14 +208,14 @@ jobs:
                 
                 // ASSEMBLY & INTEGRATION
                 'assemble': {
-                  quote: "The whole is greater than the sum of its parts" - Aristotle, via systems thinking",
+                  quote: "The whole is greater than the sum of its parts - Aristotle, via systems thinking",
                   memory: "Digital assembly mirrors centuries of architectural knowledge",
                   value: 85,
                   fragment: "SYSTEMS_WHOLE"
                 },
                 
                 'integrate': {
-                  quote: "Integration is where individual excellence becomes collective brilliance" - Pixar Pipeline Philosophy",
+                  quote: "Integration is where individual excellence becomes collective brilliance - Pixar Pipeline Philosophy",
                   memory: "Pixar's RenderMan pipeline proved integration is innovation",
                   value: 105,
                   fragment: "PIPELINE_UNITY"
@@ -223,14 +223,14 @@ jobs:
                 
                 // PORTFOLIO & PACKAGING
                 'portfolio': {
-                  quote: "Your portfolio is your visual voice" - Glenn Vilppu, animation educator",
+                  quote: "Your portfolio is your visual voice - Glenn Vilppu, animation educator",
                   memory: "From physical reels to ArtStation, portfolios launch careers",
                   value: 125,
                   fragment: "VISUAL_VOICE"
                 },
                 
                 'package': {
-                  quote: "Presentation is the difference between art and product" - Steve Jobs via Pixar",
+                  quote: "Presentation is the difference between art and product - Steve Jobs via Pixar",
                   memory: "Jobs taught Pixar that packaging creativity makes it accessible",
                   value: 95,
                   fragment: "JOBS_PACKAGING"
@@ -238,14 +238,14 @@ jobs:
                 
                 // ADVANCED TECHNIQUES
                 'advanced': {
-                  quote: "Master the fundamentals, then transcend them" - Hayao Miyazaki",
+                  quote: "Master the fundamentals, then transcend them - Hayao Miyazaki",
                   memory: "Studio Ghibli proved that technical mastery serves artistic vision",
                   value: 115,
                   fragment: "MIYAZAKI_MASTERY"
                 },
                 
                 'technique': {
-                  quote: "Technique is the proof of your seriousness" - Wallace Stevens, poet/insurance executive",
+                  quote: "Technique is the proof of your seriousness - Wallace Stevens, poet/insurance executive",
                   memory: "Technical excellence makes creative dreams achievable",
                   value: 85,
                   fragment: "TECHNIQUE_PROOF"
@@ -253,7 +253,7 @@ jobs:
                 
                 // APPLY & EXECUTE
                 'apply': {
-                  quote: "Theory becomes real only through application" - Donald Knuth",
+                  quote: "Theory becomes real only through application - Donald Knuth",
                   memory: "Knuth's TeX proved that beautiful output requires careful application",
                   value: 65,
                   fragment: "KNUTH_APPLICATION"
@@ -261,7 +261,7 @@ jobs:
                 
                 // CONFIGURE & SETUP
                 'configure': {
-                  quote: "A well-configured tool is half the work done" - Unix Philosophy",
+                  quote: "A well-configured tool is half the work done - Unix Philosophy",
                   memory: "Dennis Ritchie and Ken Thompson's Unix taught us configuration is power",
                   value: 45,
                   fragment: "UNIX_CONFIG"
@@ -269,7 +269,7 @@ jobs:
                 
                 // BEHAVIOR SYSTEMS
                 'behavior': {
-                  quote: "Artificial life emerges from simple rules" - Craig Reynolds, Boids creator",
+                  quote: "Artificial life emerges from simple rules - Craig Reynolds, Boids creator",
                   memory: "Reynolds' 1987 Boids simulation birthed crowd dynamics and flocking",
                   value: 125,
                   fragment: "BOIDS_EMERGENCE"
@@ -277,7 +277,7 @@ jobs:
                 
                 // FINAL/COMPLETE - Synthesis
                 'final': {
-                  quote: "Computer graphics is where art meets mathematics meets perception" - Alvy Ray Smith, Pixar founder",
+                  quote: "Computer graphics is where art meets mathematics meets perception - Alvy Ray Smith, Pixar founder",
                   memory: "Every pixel represents decades of mathematical breakthroughs made visual",
                   value: 250,
                   fragment: "PIXEL_SYNTHESIS"
