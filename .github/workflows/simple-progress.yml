@@ -1,0 +1,43 @@
+name: Simple Progress Tracker
+
+on:
+  workflow_dispatch:  # Manual trigger only
+  issues:
+    types: [closed]
+
+jobs:
+  update-progress:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'issues'
+    steps:
+      - name: Count Progress
+        uses: actions/github-script@v7
+        with:
+          script: |
+            try {
+              // Simple progress count
+              const issues = await github.rest.issues.listForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: 'all',
+                per_page: 100
+              });
+              
+              const total = issues.data.length;
+              const closed = issues.data.filter(i => i.state === 'closed').length;
+              const percent = Math.round((closed / total) * 100);
+              
+              console.log(`Progress: ${closed}/${total} (${percent}%)`);
+              
+              // Only comment on major milestones
+              if (closed % 10 === 0 && closed > 0) {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.payload.issue.number,
+                  body: `Progress Update: ${closed} of ${total} tasks completed (${percent}%)`
+                });
+              }
+            } catch (error) {
+              console.log('Progress tracking skipped');
+            }
