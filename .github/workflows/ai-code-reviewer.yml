@@ -1,0 +1,179 @@
+name: AI Code Review & Suggestions
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+  push:
+    paths:
+      - '**.py'
+      - '**.js'
+      - '**.jsx'
+      - '**.ts'
+      - '**.tsx'
+      - '**.yml'
+      - '**.yaml'
+      - '**.sh'
+      - '**.mel'  # Maya scripts
+      - '**.ms'   # 3ds Max scripts
+
+jobs:
+  ai-review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      - name: AI Code Analysis
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // This is a simulated AI review since real AI requires API keys
+            // In production, you'd integrate with OpenAI, Claude, or GitHub Copilot
+            
+            const files = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number
+            });
+            
+            let review = `# 🤖 AI Code Review\n\n`;
+            review += `*Automated analysis of your changes*\n\n`;
+            
+            let suggestions = [];
+            let compliments = [];
+            let warnings = [];
+            
+            for (const file of files.data) {
+              const filename = file.filename;
+              const patch = file.patch || '';
+              
+              // Analyze file types and patterns
+              if (filename.endsWith('.py')) {
+                // Python specific checks
+                if (patch.includes('import *')) {
+                  warnings.push(`⚠️ **${filename}**: Avoid wildcard imports (import *)`);
+                }
+                if (patch.includes('print(') && !patch.includes('#debug')) {
+                  suggestions.push(`💡 **${filename}**: Consider using logging instead of print statements`);
+                }
+                if (patch.includes('def ') && patch.includes('"""')) {
+                  compliments.push(`✨ **${filename}**: Great job documenting your functions!`);
+                }
+              }
+              
+              if (filename.endsWith('.mel') || filename.endsWith('.ms')) {
+                // 3D software script checks
+                compliments.push(`🎨 **${filename}**: Nice work on the 3D automation scripts!`);
+                if (patch.includes('select -all')) {
+                  suggestions.push(`💡 **${filename}**: Consider storing selection before select -all`);
+                }
+              }
+              
+              // General code quality checks
+              if (patch.includes('TODO') || patch.includes('FIXME')) {
+                suggestions.push(`📝 **${filename}**: Found TODO/FIXME - remember to address these`);
+              }
+              
+              if (patch.includes('try:') && !patch.includes('except')) {
+                warnings.push(`⚠️ **${filename}**: Try block without except clause detected`);
+              }
+              
+              // Check for good practices
+              const addedLines = patch.split('\n').filter(line => line.startsWith('+'));
+              if (addedLines.length > 100) {
+                warnings.push(`📏 **${filename}**: Large change (${addedLines.length} lines) - consider breaking into smaller commits`);
+              } else if (addedLines.length < 10) {
+                compliments.push(`👍 **${filename}**: Nice, focused change!`);
+              }
+            }
+            
+            // Build review message
+            if (compliments.length > 0) {
+              review += `## ✅ What's Great\n`;
+              compliments.forEach(c => review += `${c}\n`);
+              review += `\n`;
+            }
+            
+            if (suggestions.length > 0) {
+              review += `## 💡 Suggestions\n`;
+              suggestions.forEach(s => review += `${s}\n`);
+              review += `\n`;
+            }
+            
+            if (warnings.length > 0) {
+              review += `## ⚠️ Potential Issues\n`;
+              warnings.forEach(w => review += `${w}\n`);
+              review += `\n`;
+            }
+            
+            // Add 3D-specific tips
+            review += `## 🎬 3D Pipeline Tips\n`;
+            review += `- Remember to version your scene files (save incrementally)\n`;
+            review += `- Check poly counts before committing models\n`;
+            review += `- Ensure textures are in the correct folders\n`;
+            review += `- Test scripts in a clean scene before committing\n\n`;
+            
+            // Overall assessment
+            const score = compliments.length * 2 - warnings.length;
+            if (score > 3) {
+              review += `## 🌟 Overall: Excellent!\n`;
+              review += `Your code quality is impressive. Keep up the great work!\n`;
+            } else if (score > 0) {
+              review += `## 👍 Overall: Good\n`;
+              review += `Solid changes with room for minor improvements.\n`;
+            } else {
+              review += `## 📚 Overall: Needs Attention\n`;
+              review += `Please address the issues above before merging.\n`;
+            }
+            
+            // Post review comment
+            await github.rest.pulls.createReview({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number,
+              body: review,
+              event: warnings.length > 2 ? 'REQUEST_CHANGES' : 'COMMENT'
+            });
+
+  suggest-improvements:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Analyze and Suggest
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Check for common improvements in 3D projects
+            const fs = require('fs');
+            
+            let suggestions = [];
+            
+            // Check for missing important files
+            const requiredFiles = [
+              { file: '.gitignore', suggestion: 'Add .gitignore to exclude large files' },
+              { file: 'README.md', suggestion: 'Add README with project instructions' },
+              { file: 'requirements.txt', suggestion: 'Add requirements.txt for Python dependencies' }
+            ];
+            
+            // This would check if files exist and create issues with suggestions
+            console.log('AI suggestions system activated');
+            
+            // Create improvement suggestion issue if needed
+            if (suggestions.length > 0) {
+              const body = `# 🤖 AI Improvement Suggestions\n\n` +
+                suggestions.map(s => `- [ ] ${s}`).join('\n') +
+                `\n\n*These suggestions will help improve your project quality.*`;
+                
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: '🤖 AI Suggestions for Project Improvement',
+                body: body,
+                labels: ['enhancement', 'ai-suggestion']
+              });
+            }

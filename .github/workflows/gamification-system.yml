@@ -1,0 +1,304 @@
+name: Gamification & Achievement System
+
+on:
+  issues:
+    types: [closed]
+  pull_request:
+    types: [opened, closed]
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 0 * * 0'  # Weekly leaderboard update
+
+jobs:
+  award-achievements:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'issues' && github.event.action == 'closed'
+    steps:
+      - name: Award Achievement Badges
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const user = issue.assignee ? issue.assignee.login : context.payload.sender.login;
+            
+            // Get user's closed issues count
+            const userIssues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'closed',
+              assignee: user,
+              per_page: 100
+            });
+            
+            const count = userIssues.data.length;
+            let newBadges = [];
+            let xpEarned = 0;
+            
+            // Achievement definitions
+            const achievements = {
+              1: { badge: '🥇 First Blood', xp: 100, message: 'Completed your first task!' },
+              5: { badge: '⭐ Rising Star', xp: 250, message: '5 tasks completed - momentum building!' },
+              10: { badge: '🔥 On Fire', xp: 500, message: '10 tasks crushed! You\'re unstoppable!' },
+              20: { badge: '💎 Diamond Hands', xp: 1000, message: '20 tasks! True dedication!' },
+              30: { badge: '🚀 Rocket Man', xp: 1500, message: '30 tasks! To the moon!' },
+              50: { badge: '👑 Task Master', xp: 2500, message: '50 tasks! Absolute legend!' },
+              69: { badge: '🏆 COMPLETIONIST', xp: 5000, message: 'ALL 69 TASKS COMPLETE! YOU DID IT!' }
+            };
+            
+            // Check for new achievements
+            for (const [threshold, achievement] of Object.entries(achievements)) {
+              if (count == threshold) {
+                newBadges.push(achievement);
+                xpEarned += achievement.xp;
+              }
+            }
+            
+            // Special achievements based on task type
+            const title = issue.title.toLowerCase();
+            if (title.includes('install') && count === 1) {
+              newBadges.push({ 
+                badge: '🛠️ Tool Master', 
+                xp: 150, 
+                message: 'Successfully set up development environment!' 
+              });
+              xpEarned += 150;
+            }
+            
+            if (title.includes('model') || title.includes('animation')) {
+              newBadges.push({ 
+                badge: '🎨 Artist', 
+                xp: 200, 
+                message: 'Created amazing 3D art!' 
+              });
+              xpEarned += 200;
+            }
+            
+            if (title.includes('render')) {
+              newBadges.push({ 
+                badge: '📸 Renderer', 
+                xp: 300, 
+                message: 'Master of light and shadows!' 
+              });
+              xpEarned += 300;
+            }
+            
+            // Speed achievements
+            const closedAt = new Date(issue.closed_at);
+            const createdAt = new Date(issue.created_at);
+            const hoursToComplete = (closedAt - createdAt) / (1000 * 60 * 60);
+            
+            if (hoursToComplete < 1) {
+              newBadges.push({ 
+                badge: '⚡ Speed Demon', 
+                xp: 500, 
+                message: 'Completed task in under 1 hour!' 
+              });
+              xpEarned += 500;
+            } else if (hoursToComplete < 24) {
+              newBadges.push({ 
+                badge: '⏰ Time Keeper', 
+                xp: 250, 
+                message: 'Completed task within 24 hours!' 
+              });
+              xpEarned += 250;
+            }
+            
+            // Streak achievements
+            const today = new Date();
+            const yesterday = new Date(today - 86400000);
+            const recentClosed = userIssues.data.filter(i => {
+              const closed = new Date(i.closed_at);
+              return closed > yesterday;
+            });
+            
+            if (recentClosed.length >= 3) {
+              newBadges.push({ 
+                badge: '🔥 Hot Streak', 
+                xp: 400, 
+                message: '3+ tasks in 24 hours! Incredible pace!' 
+              });
+              xpEarned += 400;
+            }
+            
+            // Create achievement notification
+            if (newBadges.length > 0) {
+              let message = `# 🎊 ACHIEVEMENTS UNLOCKED! 🎊\n\n`;
+              message += `Congratulations @${user}! You've earned:\n\n`;
+              
+              newBadges.forEach(achievement => {
+                message += `## ${achievement.badge}\n`;
+                message += `*${achievement.message}*\n`;
+                message += `**+${achievement.xp} XP**\n\n`;
+              });
+              
+              // Calculate level
+              const totalXP = xpEarned + (count - 1) * 100; // Base 100 XP per task
+              const level = Math.floor(totalXP / 500) + 1;
+              const nextLevelXP = (level * 500) - totalXP;
+              
+              message += `## 📊 Your Stats\n`;
+              message += `- **Level:** ${level}\n`;
+              message += `- **Total XP:** ${totalXP}\n`;
+              message += `- **Tasks Completed:** ${count}\n`;
+              message += `- **XP to Next Level:** ${nextLevelXP}\n\n`;
+              
+              // Progress bar to next level
+              const progress = ((totalXP % 500) / 500) * 100;
+              const filled = Math.floor(progress / 5);
+              const empty = 20 - filled;
+              message += `**Level Progress:**\n`;
+              message += `${'█'.repeat(filled)}${'░'.repeat(empty)} ${Math.round(progress)}%\n\n`;
+              
+              // Motivational message
+              const motivations = [
+                "You're absolutely crushing it! Keep going!",
+                "This is what excellence looks like!",
+                "Your dedication is inspiring!",
+                "You're making incredible progress!",
+                "The momentum is real! Don't stop now!"
+              ];
+              
+              message += `> ${motivations[Math.floor(Math.random() * motivations.length)]}\n`;
+              
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: message
+              });
+            }
+            
+  update-leaderboard:
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 0 * * 0' || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Generate Weekly Leaderboard
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Get all closed issues
+            const allIssues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'closed',
+              per_page: 100
+            });
+            
+            // Calculate stats per user
+            const userStats = {};
+            
+            allIssues.data.forEach(issue => {
+              const user = issue.assignee ? issue.assignee.login : 'unassigned';
+              
+              if (!userStats[user]) {
+                userStats[user] = {
+                  tasks: 0,
+                  xp: 0,
+                  avgTime: 0,
+                  totalTime: 0,
+                  achievements: []
+                };
+              }
+              
+              userStats[user].tasks++;
+              userStats[user].xp += 100; // Base XP
+              
+              // Calculate completion time
+              const created = new Date(issue.created_at);
+              const closed = new Date(issue.closed_at);
+              const hours = (closed - created) / (1000 * 60 * 60);
+              userStats[user].totalTime += hours;
+            });
+            
+            // Calculate levels and averages
+            Object.keys(userStats).forEach(user => {
+              const stats = userStats[user];
+              stats.level = Math.floor(stats.xp / 500) + 1;
+              stats.avgTime = stats.tasks > 0 ? (stats.totalTime / stats.tasks).toFixed(1) : 0;
+              
+              // Award titles based on performance
+              if (stats.tasks >= 50) stats.title = '👑 Legend';
+              else if (stats.tasks >= 30) stats.title = '🏆 Champion';
+              else if (stats.tasks >= 20) stats.title = '💎 Elite';
+              else if (stats.tasks >= 10) stats.title = '⭐ Pro';
+              else if (stats.tasks >= 5) stats.title = '🎯 Achiever';
+              else if (stats.tasks >= 1) stats.title = '🌱 Beginner';
+              else stats.title = '🥚 Unhatched';
+            });
+            
+            // Sort by XP for leaderboard
+            const leaderboard = Object.entries(userStats)
+              .sort((a, b) => b[1].xp - a[1].xp);
+            
+            // Generate leaderboard message
+            let message = `# 🏆 WEEKLY LEADERBOARD 🏆\n`;
+            message += `*Week of ${new Date().toLocaleDateString()}*\n\n`;
+            
+            // Podium
+            if (leaderboard.length > 0) {
+              message += `## 🥇🥈🥉 Top Performers\n\n`;
+              
+              const medals = ['🥇', '🥈', '🥉'];
+              leaderboard.slice(0, 3).forEach((entry, index) => {
+                const [user, stats] = entry;
+                message += `### ${medals[index]} ${index + 1}. @${user} ${stats.title}\n`;
+                message += `- **Level ${stats.level}** (${stats.xp} XP)\n`;
+                message += `- **Tasks:** ${stats.tasks} completed\n`;
+                message += `- **Avg Speed:** ${stats.avgTime} hours/task\n\n`;
+              });
+            }
+            
+            // Full rankings table
+            message += `## 📊 Full Rankings\n\n`;
+            message += `| Rank | User | Level | XP | Tasks | Avg Time | Title |\n`;
+            message += `|------|------|-------|-----|-------|----------|-------|\n`;
+            
+            leaderboard.forEach((entry, index) => {
+              const [user, stats] = entry;
+              message += `| ${index + 1} | @${user} | ${stats.level} | ${stats.xp} | ${stats.tasks} | ${stats.avgTime}h | ${stats.title} |\n`;
+            });
+            
+            // Weekly challenges
+            message += `\n## 🎯 This Week's Challenges\n\n`;
+            message += `### 🏃 Speed Challenge\n`;
+            message += `Complete any 3 tasks in under 24 hours total\n`;
+            message += `**Reward:** 🚀 Speed Racer badge + 1000 XP\n\n`;
+            
+            message += `### 💪 Endurance Challenge\n`;
+            message += `Complete 5 tasks this week\n`;
+            message += `**Reward:** 💎 Week Warrior badge + 750 XP\n\n`;
+            
+            message += `### 🎨 Creative Challenge\n`;
+            message += `Complete all Part 4 (Foundation Skills) tasks\n`;
+            message += `**Reward:** 🎨 Foundation Master badge + 1500 XP\n\n`;
+            
+            // Motivational closer
+            message += `---\n`;
+            message += `*Keep pushing! Every task completed brings you closer to mastery!*\n`;
+            message += `*The leaderboard resets weekly - your chance to climb starts now!*`;
+            
+            // Create or update leaderboard issue
+            const leaderboardIssues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'leaderboard',
+              state: 'open'
+            });
+            
+            if (leaderboardIssues.data.length > 0) {
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: leaderboardIssues.data[0].number,
+                body: message
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: '🏆 Weekly Leaderboard & Rankings',
+                body: message,
+                labels: ['leaderboard', 'gamification', 'pinned']
+              });
+            }
