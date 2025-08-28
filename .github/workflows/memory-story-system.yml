@@ -35,7 +35,7 @@ jobs:
                 
                 // BLENDER - Ton Roosendaal's open source vision
                 'install blender': {
-                  quote: "Software freedom is about empowering artists to own their tools" - Ton Roosendaal, 2002",
+                  quote: "Software freedom is about empowering artists to own their tools - Ton Roosendaal, 2002",
                   memory: "Ton Roosendaal mortgaged his house to make Blender open source, freeing 3D creation for everyone",
                   value: 35,
                   fragment: "FREEDOM_MORTGAGE"
