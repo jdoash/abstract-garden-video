@@ -62,7 +62,7 @@ jobs:
                 'background': { min: 65, max: 145, category: 'Background' },
                 
                 // Effects: $45-125 based on complexity
-                'particle':eman 55, max: 125, category: 'Effects' },
+                'particle': { min: 55, max: 125, category: 'Effects' },
                 'effect': { min: 50, max: 115, category: 'Effects' },
                 'dynamic': { min: 60, max: 135, category: 'Dynamics' },
                 'simulation': { min: 65, max: 145, category: 'Simulation' },
