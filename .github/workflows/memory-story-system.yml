@@ -27,7 +27,7 @@ jobs:
               const historicalMemories = {
                 // MAYA - Ivan Sutherland's Sketchpad (1963)
                 'install maya': {
-                  quote: "The screen is a window through which one sees a virtual world. The challenge is to make that world look real" - Ivan Sutherland, 1965",
+                  quote: "The screen is a window through which one sees a virtual world. The challenge is to make that world look real - Ivan Sutherland, 1965",
                   memory: "Ivan Sutherland's Sketchpad (1963) invented the concepts Maya uses today: object hierarchy, constraints, and graphical manipulation",
                   value: 45,
                   fragment: "SKETCHPAD_LIGHT_PEN"
