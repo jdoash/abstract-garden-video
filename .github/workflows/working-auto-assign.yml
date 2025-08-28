@@ -1,0 +1,67 @@
+name: Auto Assign Tasks
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  auto-assign:
+    runs-on: ubuntu-latest
+    if: github.event.issue.pull_request == null
+    steps:
+      - name: Process Comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            try {
+              const comment = context.payload.comment.body.toLowerCase();
+              const issue = context.payload.issue;
+              const user = context.payload.comment.user.login;
+              
+              // Assign task
+              if (comment.includes("i'll take this") || comment.includes("assign me")) {
+                await github.rest.issues.addAssignees({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  assignees: [user]
+                });
+                
+                console.log(`Assigned #${issue.number} to ${user}`);
+              }
+              
+              // Mark complete
+              if (comment.includes("done") || comment.includes("complete")) {
+                if (issue.assignees.some(a => a.login === user)) {
+                  await github.rest.issues.update({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: issue.number,
+                    state: 'closed'
+                  });
+                  
+                  console.log(`Closed #${issue.number}`);
+                }
+              }
+              
+              // Request help
+              if (comment.includes("help") || comment.includes("stuck")) {
+                const labels = issue.labels.map(l => l.name);
+                if (!labels.includes('help-wanted')) {
+                  await github.rest.issues.addLabels({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: issue.number,
+                    labels: ['help-wanted']
+                  });
+                  
+                  console.log(`Added help label to #${issue.number}`);
+                }
+              }
+            } catch (error) {
+              console.error('Auto-assign error:', error.message);
+            }

@@ -1,0 +1,60 @@
+name: Gamification System
+
+on:
+  issues:
+    types: [closed]
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  award-points:
+    runs-on: ubuntu-latest
+    if: github.event.action == 'closed'
+    steps:
+      - name: Award Achievement
+        uses: actions/github-script@v7
+        with:
+          script: |
+            try {
+              const issue = context.payload.issue;
+              
+              // Count all closed issues (no assignee filter to avoid errors)
+              const allClosed = await github.rest.issues.listForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: 'closed',
+                per_page: 100
+              });
+              
+              const count = allClosed.data.length;
+              let message = '';
+              
+              // Achievement milestones
+              const milestones = {
+                1: 'First task complete.',
+                5: 'Milestone: 5 tasks complete.',
+                10: 'Achievement: 10 tasks complete.',
+                15: '15 tasks complete. Quarter way.',
+                20: 'Achievement: 20 tasks complete.',
+                25: '25 tasks complete. Almost halfway.',
+                30: 'Milestone: 30 tasks complete. Over halfway.',
+                40: '40 tasks complete. Final stretch.',
+                50: 'Achievement: 50 tasks complete.',
+                56: 'Project complete. All tasks done.'
+              };
+              
+              if (milestones[count]) {
+                message = `${milestones[count]} Progress: ${count}/56`;
+                
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  body: message
+                });
+              }
+            } catch (error) {
+              console.error('Error:', error.message);
+            }

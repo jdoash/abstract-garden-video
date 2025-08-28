@@ -1,0 +1,84 @@
+name: Progress Dashboard
+
+on:
+  workflow_dispatch:
+  issues:
+    types: [closed]
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  update-progress:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update Dashboard
+        uses: actions/github-script@v7
+        with:
+          script: |
+            try {
+              // Get issue counts
+              const allIssues = await github.rest.issues.listForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: 'all',
+                per_page: 100
+              });
+              
+              const openIssues = await github.rest.issues.listForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: 'open',
+                per_page: 100
+              });
+              
+              const total = allIssues.data.length;
+              const open = openIssues.data.length;
+              const closed = total - open;
+              const percent = total > 0 ? Math.round((closed / total) * 100) : 0;
+              
+              // Simple progress bar
+              const filled = Math.floor(percent / 5);
+              const bar = '#'.repeat(filled) + '-'.repeat(20 - filled);
+              
+              let dashboard = 'Project Status\n\n';
+              dashboard += `Progress: [${bar}] ${percent}%\n\n`;
+              dashboard += `Completed: ${closed}\n`;
+              dashboard += `Remaining: ${open}\n`;
+              dashboard += `Total: ${total}\n\n`;
+              dashboard += `Last updated: ${new Date().toLocaleDateString()}`;
+              
+              // Find existing dashboard issue
+              const dashboards = await github.rest.issues.listForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                creator: 'github-actions[bot]',
+                state: 'open'
+              });
+              
+              const dashboardIssue = dashboards.data.find(i => i.title === 'Progress Dashboard');
+              
+              if (dashboardIssue) {
+                // Update existing
+                await github.rest.issues.update({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: dashboardIssue.number,
+                  body: dashboard
+                });
+                console.log('Dashboard updated');
+              } else if (context.eventName === 'workflow_dispatch') {
+                // Create new only on manual trigger
+                await github.rest.issues.create({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  title: 'Progress Dashboard',
+                  body: dashboard,
+                  labels: ['dashboard']
+                });
+                console.log('Dashboard created');
+              }
+            } catch (error) {
+              console.error('Dashboard error:', error.message);
+            }
