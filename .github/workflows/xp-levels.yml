@@ -1,0 +1,85 @@
+name: XP and Levels
+
+on:
+  issues:
+    types: [closed, labeled]
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  award-xp:
+    runs-on: ubuntu-latest
+    if: github.event.action == 'closed' && github.event.issue.assignee
+    steps:
+      - name: Calculate XP
+        uses: actions/github-script@v7
+        with:
+          script: |
+            try {
+              const issue = context.payload.issue;
+              const user = issue.assignee.login;
+              
+              // XP values by label
+              const xpValues = {
+                'task': 10,
+                'bug': 15,
+                'feature': 20,
+                'epic': 30,
+                'critical': 25,
+                'Part 1': 15,
+                'Part 2': 20,
+                'Part 3': 25,
+                'Sprint 1': 10,
+                'Sprint 2': 15,
+                'Sprint 3': 20
+              };
+              
+              // Calculate XP from labels
+              let taskXP = 10; // base XP
+              for (const label of issue.labels) {
+                if (xpValues[label.name]) {
+                  taskXP = Math.max(taskXP, xpValues[label.name]);
+                }
+              }
+              
+              // Get user's total completed tasks
+              const userIssues = await github.rest.issues.listForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: 'closed',
+                assignee: user,
+                per_page: 100
+              });
+              
+              const totalTasks = userIssues.data.length;
+              const totalXP = totalTasks * 15; // average XP per task
+              const level = Math.floor(Math.sqrt(totalXP / 50)) + 1;
+              
+              // Level titles
+              const titles = {
+                1: 'Beginner',
+                2: 'Apprentice',
+                3: 'Practitioner',
+                4: 'Professional',
+                5: 'Expert',
+                6: 'Master',
+                7: 'Grandmaster'
+              };
+              
+              const title = titles[Math.min(level, 7)];
+              const nextLevel = (Math.pow(level, 2) * 50);
+              const progress = Math.round((totalXP / nextLevel) * 100);
+              
+              // Post XP award
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: `+${taskXP} XP earned\n\nLevel ${level} ${title}\nTotal XP: ${totalXP}\nProgress to Level ${level + 1}: ${progress}%\nTasks completed: ${totalTasks}`
+              });
+              
+            } catch (error) {
+              console.error('XP system error:', error.message);
+            }
