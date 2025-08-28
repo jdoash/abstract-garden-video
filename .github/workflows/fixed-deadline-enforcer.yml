@@ -1,0 +1,65 @@
+name: Deadline Enforcement
+
+on:
+  schedule:
+    - cron: '0 9 * * FRI'  # Check deadlines weekly on Friday
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  check-deadlines:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enforce Deadlines
+        uses: actions/github-script@v7
+        with:
+          script: |
+            try {
+              const now = new Date();
+              const issues = await github.rest.issues.listForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: 'open',
+                per_page: 100
+              });
+              
+              let warnings = [];
+              
+              for (const issue of issues.data) {
+                if (!issue.milestone || !issue.milestone.due_on) continue;
+                
+                const due = new Date(issue.milestone.due_on);
+                const daysUntil = Math.floor((due - now) / (24 * 60 * 60 * 1000));
+                
+                // Warning at 3 days before deadline
+                if (daysUntil === 3 && !issue.labels.some(l => l.name === 'deadline-warning')) {
+                  await github.rest.issues.addLabels({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: issue.number,
+                    labels: ['deadline-warning']
+                  });
+                  
+                  warnings.push(`#${issue.number}: ${issue.title}`);
+                }
+                
+                // Critical at 1 day before
+                if (daysUntil === 1 && !issue.labels.some(l => l.name === 'critical')) {
+                  await github.rest.issues.addLabels({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: issue.number,
+                    labels: ['critical']
+                  });
+                }
+              }
+              
+              if (warnings.length > 0) {
+                console.log(`Deadline warnings: ${warnings.length} tasks approaching deadline`);
+              }
+            } catch (error) {
+              console.error('Deadline enforcement error:', error.message);
+            }

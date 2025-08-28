@@ -1,0 +1,53 @@
+name: Task Suggester
+
+on:
+  workflow_dispatch:
+  issues:
+    types: [closed]
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  suggest-next:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'issues' && github.event.action == 'closed'
+    steps:
+      - name: Suggest Next Task
+        uses: actions/github-script@v7
+        with:
+          script: |
+            try {
+              const closedIssue = context.payload.issue;
+              
+              // Get open issues
+              const openIssues = await github.rest.issues.listForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: 'open',
+                per_page: 100
+              });
+              
+              if (openIssues.data.length === 0) return;
+              
+              // Find related tasks (same sprint or labels)
+              const related = openIssues.data.filter(i => {
+                const sharedLabels = i.labels.filter(l => 
+                  closedIssue.labels.some(cl => cl.name === l.name)
+                );
+                return sharedLabels.length > 0 && !i.assignee;
+              });
+              
+              if (related.length > 0) {
+                const next = related[0];
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: closedIssue.number,
+                  body: `Next suggested task: #${next.number} - ${next.title}`
+                });
+              }
+            } catch (error) {
+              console.error('Task suggester error:', error.message);
+            }

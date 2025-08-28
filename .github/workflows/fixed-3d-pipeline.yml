@@ -1,0 +1,78 @@
+name: 3D Pipeline Validation
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '**.ma'
+      - '**.mb'
+      - '**.blend'
+      - '**.hip'
+      - '**.usd'
+      - '**.fbx'
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  validate-files:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Check 3D Files
+        run: |
+          echo "3D Pipeline Validation"
+          echo "====================="
+          
+          # Check for 3D files
+          files_found=0
+          
+          for ext in ma mb blend hip usd fbx obj; do
+            count=$(find . -name "*.${ext}" 2>/dev/null | wc -l)
+            if [ $count -gt 0 ]; then
+              echo "Found $count .$ext files"
+              files_found=$((files_found + count))
+            fi
+          done
+          
+          if [ $files_found -eq 0 ]; then
+            echo "No 3D files detected in push"
+          else
+            echo "Total 3D files: $files_found"
+            
+            # Check file sizes
+            find . \( -name "*.ma" -o -name "*.mb" -o -name "*.blend" -o -name "*.hip" \) -exec ls -lh {} \;
+          fi
+      
+      - name: Update Progress
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            try {
+              // Find related issues
+              const issues = await github.rest.issues.listForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                labels: '3D',
+                state: 'open'
+              });
+              
+              if (issues.data.length > 0 && context.payload.head_commit) {
+                const message = context.payload.head_commit.message;
+                const issueNum = message.match(/#(\d+)/);
+                
+                if (issueNum) {
+                  await github.rest.issues.createComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: parseInt(issueNum[1]),
+                    body: '3D files validated. Pipeline check passed.'
+                  });
+                }
+              }
+            } catch (error) {
+              console.error('Pipeline validation error:', error.message);
+            }

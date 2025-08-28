@@ -1,0 +1,54 @@
+name: Sprint Manager
+
+on:
+  schedule:
+    - cron: '0 9 * * MON'  # Weekly sprint review
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  manage-sprints:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sprint Status Update
+        uses: actions/github-script@v7
+        with:
+          script: |
+            try {
+              const today = new Date();
+              const weekNum = Math.floor((today - new Date(today.getFullYear(), 0, 1)) / (7 * 24 * 60 * 60 * 1000)) + 1;
+              
+              // Get sprint issues
+              const issues = await github.rest.issues.listForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                labels: `Sprint ${Math.floor((weekNum - 1) / 2) % 3 + 1}`,
+                state: 'open',
+                per_page: 100
+              });
+              
+              if (issues.data.length === 0) return;
+              
+              // Check overdue tasks
+              const overdue = issues.data.filter(i => {
+                if (!i.milestone || !i.milestone.due_on) return false;
+                return new Date(i.milestone.due_on) < today;
+              });
+              
+              // Update overdue tasks
+              for (const issue of overdue) {
+                await github.rest.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  labels: ['overdue']
+                });
+              }
+              
+              console.log(`Sprint review: ${overdue.length} overdue tasks marked`);
+            } catch (error) {
+              console.error('Sprint manager error:', error.message);
+            }
