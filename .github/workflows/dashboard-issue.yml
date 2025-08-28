@@ -1,0 +1,165 @@
+name: Live Dashboard Issue
+
+on:
+  issues:
+    types: [closed]
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  update-dashboard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update Dashboard Issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            try {
+              // Find or create dashboard issue
+              const dashboards = await github.rest.issues.listForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                labels: 'dashboard',
+                state: 'open'
+              });
+              
+              // Get all issues for stats
+              const allIssues = await github.rest.issues.listForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: 'all',
+                per_page: 100
+              });
+              
+              const closedIssues = allIssues.data.filter(i => i.state === 'closed' && !i.pull_request);
+              const totalTasks = 49;
+              const completedTasks = Math.min(closedIssues.length, totalTasks);
+              const progress = Math.round((completedTasks / totalTasks) * 100);
+              
+              // Calculate values
+              const portfolioValue = completedTasks * 75;
+              const monthlyIncome = Math.round(portfolioValue * 0.2);
+              const level = Math.floor(Math.sqrt((completedTasks * 100) / 100)) + 1;
+              
+              // Create visual progress bar
+              const filled = Math.floor(progress / 5);
+              const empty = 20 - filled;
+              const progressBar = '█'.repeat(filled) + '░'.repeat(empty);
+              
+              // Generate dashboard content
+              let dashboard = `# 🌳 Abstract Garden - Live Progress Dashboard\n\n`;
+              dashboard += `## 🎮 Current Stats\n\n`;
+              dashboard += `### Overall Progress\n`;
+              dashboard += `\`\`\`\n`;
+              dashboard += `[${progressBar}] ${progress}%\n`;
+              dashboard += `${completedTasks}/${totalTasks} tasks completed\n`;
+              dashboard += `\`\`\`\n\n`;
+              
+              dashboard += `### 💰 Portfolio Value\n`;
+              dashboard += `# $${portfolioValue.toLocaleString()}\n`;
+              dashboard += `**Monthly Potential:** $${monthlyIncome}/month\n`;
+              dashboard += `**After CGTrader (66%):** $${Math.round(monthlyIncome * 0.66)}/month\n\n`;
+              
+              dashboard += `### ⭐ Level & XP\n`;
+              dashboard += `# Level ${level}\n`;
+              const titles = ['Beginner', 'Apprentice', 'Professional', 'Expert', 'Master', 'Elite'];
+              dashboard += `**Title:** ${titles[Math.min(level - 1, 5)]}\n`;
+              dashboard += `**XP:** ${completedTasks * 100}\n\n`;
+              
+              // Sprint breakdown
+              dashboard += `### 📊 Sprint Progress\n\n`;
+              
+              const sprint1 = closedIssues.filter(i => i.labels.some(l => l.name === 'Sprint 1')).length;
+              const sprint2 = closedIssues.filter(i => i.labels.some(l => l.name === 'Sprint 2')).length;
+              const sprint3 = closedIssues.filter(i => i.labels.some(l => l.name === 'Sprint 3')).length;
+              
+              dashboard += `| Sprint | Progress | Tasks |\n`;
+              dashboard += `|--------|----------|-------|\n`;
+              dashboard += `| Sprint 1 | ${Math.round(sprint1/20*100)}% | ${sprint1}/20 |\n`;
+              dashboard += `| Sprint 2 | ${Math.round(sprint2/15*100)}% | ${sprint2}/15 |\n`;
+              dashboard += `| Sprint 3 | ${Math.round(sprint3/14*100)}% | ${sprint3}/14 |\n\n`;
+              
+              // Memory collection visual
+              dashboard += `### 🧠 Memory Collection\n`;
+              dashboard += `\`\`\`\n`;
+              for (let i = 0; i < 7; i++) {
+                for (let j = 0; j < 7; j++) {
+                  const index = i * 7 + j;
+                  if (index < completedTasks) {
+                    dashboard += `✨ `;
+                  } else if (index < 49) {
+                    dashboard += `◯ `;
+                  }
+                }
+                dashboard += `\n`;
+              }
+              dashboard += `\`\`\`\n`;
+              dashboard += `**${completedTasks}/49 memories collected**\n\n`;
+              
+              // Milestones
+              dashboard += `### 🏆 Milestones\n\n`;
+              if (completedTasks >= 1) dashboard += `✅ **First Step** - Journey begun!\n`;
+              if (completedTasks >= 5) dashboard += `✅ **Taking Root** - Foundation established\n`;
+              if (completedTasks >= 10) dashboard += `✅ **Growing Strong** - Multiple disciplines mastered\n`;
+              if (completedTasks >= 20) dashboard += `✅ **Branching Out** - Complex systems understood\n`;
+              if (completedTasks >= 30) dashboard += `✅ **Flourishing** - Professional capability\n`;
+              if (completedTasks >= 40) dashboard += `✅ **Blooming** - Artistic vision manifesting\n`;
+              if (completedTasks >= 49) dashboard += `🌟 **COMPLETE** - Abstract Garden realized!\n`;
+              
+              // Market readiness
+              dashboard += `\n### 📈 Market Readiness\n\n`;
+              if (portfolioValue >= 500) {
+                dashboard += `✅ **READY FOR SALES**\n\n`;
+                dashboard += `Recommended platforms:\n`;
+                if (portfolioValue >= 3000) {
+                  dashboard += `- TurboSquid CheckMate (Premium tier)\n`;
+                  dashboard += `- CGTrader Pro (85% royalty eligible)\n`;
+                } else if (portfolioValue >= 1500) {
+                  dashboard += `- CGTrader (66% royalty tier)\n`;
+                  dashboard += `- Gumroad (Direct sales)\n`;
+                } else {
+                  dashboard += `- CGTrader (Building reputation)\n`;
+                  dashboard += `- Sketchfab (Community growth)\n`;
+                }
+              } else {
+                dashboard += `⏳ Complete ${Math.ceil((500 - portfolioValue) / 75)} more tasks to reach market readiness\n`;
+              }
+              
+              // Links
+              dashboard += `\n---\n\n`;
+              dashboard += `### 🔗 Quick Links\n`;
+              dashboard += `- [Start Next Task](https://github.com/${context.repo.owner}/${context.repo.repo}/issues?q=is%3Aopen+label%3A%22Sprint+1%22)\n`;
+              dashboard += `- [View Milestones](https://github.com/${context.repo.owner}/${context.repo.repo}/milestones)\n`;
+              dashboard += `- [Completed Tasks](https://github.com/${context.repo.owner}/${context.repo.repo}/issues?q=is%3Aclosed)\n\n`;
+              
+              dashboard += `*Last updated: ${new Date().toLocaleString()}*\n`;
+              dashboard += `*Dashboard updates automatically when tasks are completed*`;
+              
+              // Create or update dashboard
+              if (dashboards.data.length > 0) {
+                await github.rest.issues.update({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: dashboards.data[0].number,
+                  body: dashboard,
+                  title: '📊 LIVE DASHBOARD - Abstract Garden Progress'
+                });
+              } else {
+                await github.rest.issues.create({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  title: '📊 LIVE DASHBOARD - Abstract Garden Progress',
+                  body: dashboard,
+                  labels: ['dashboard'],
+                  pinned: true
+                });
+              }
+              
+              console.log('Dashboard updated successfully');
+              
+            } catch (error) {
+              console.error('Dashboard update error:', error.message);
+            }
