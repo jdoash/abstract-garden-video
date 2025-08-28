@@ -1,0 +1,116 @@
+name: Update Dashboard Data
+
+on:
+  issues:
+    types: [closed, opened, reopened]
+  workflow_dispatch:
+  schedule:
+    - cron: '0 */6 * * *'  # Every 6 hours
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  update-dashboard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Generate Dashboard Data
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            
+            // Fetch all issues
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'all',
+              per_page: 100
+            });
+            
+            // Calculate statistics
+            const closedIssues = issues.data.filter(i => i.state === 'closed' && !i.pull_request);
+            const openIssues = issues.data.filter(i => i.state === 'open' && !i.pull_request);
+            
+            // Task values based on research
+            const taskValues = {
+              'install': 95,
+              'setup': 45,
+              'model': 75,
+              'texture': 65,
+              'rig': 115,
+              'animate': 135,
+              'render': 55,
+              'composite': 95,
+              'final': 250
+            };
+            
+            // Calculate portfolio value
+            let portfolioValue = 0;
+            let tasksByCategory = {};
+            let memoriesCollected = [];
+            
+            for (const issue of closedIssues) {
+              const title = issue.title.toLowerCase();
+              let value = 45; // default
+              
+              for (const [key, val] of Object.entries(taskValues)) {
+                if (title.includes(key)) {
+                  value = val;
+                  break;
+                }
+              }
+              
+              portfolioValue += value;
+              
+              // Track sprint progress
+              const sprintLabel = issue.labels.find(l => l.name.startsWith('Sprint'));
+              if (sprintLabel) {
+                tasksByCategory[sprintLabel.name] = (tasksByCategory[sprintLabel.name] || 0) + 1;
+              }
+            }
+            
+            // Generate data file
+            const dashboardData = {
+              lastUpdated: new Date().toISOString(),
+              stats: {
+                totalTasks: 49,
+                completedTasks: closedIssues.length,
+                openTasks: openIssues.length,
+                portfolioValue: portfolioValue,
+                monthlyPotential: Math.round(portfolioValue * 0.2),
+                progress: Math.round((closedIssues.length / 49) * 100)
+              },
+              sprints: {
+                'Sprint 1': { completed: tasksByCategory['Sprint 1'] || 0, total: 20 },
+                'Sprint 2': { completed: tasksByCategory['Sprint 2'] || 0, total: 15 },
+                'Sprint 3': { completed: tasksByCategory['Sprint 3'] || 0, total: 14 }
+              },
+              level: {
+                current: Math.floor(Math.sqrt((closedIssues.length * 100) / 100)) + 1,
+                xp: closedIssues.length * 100,
+                title: ['Beginner', 'Apprentice', 'Professional', 'Expert', 'Master', 'Elite'][
+                  Math.min(Math.floor(Math.sqrt((closedIssues.length * 100) / 100)), 5)
+                ]
+              },
+              recentTasks: closedIssues.slice(0, 5).map(i => ({
+                title: i.title,
+                closedAt: i.closed_at,
+                number: i.number
+              }))
+            };
+            
+            // Write to docs folder for GitHub Pages
+            fs.writeFileSync('docs/data.json', JSON.stringify(dashboardData, null, 2));
+            
+      - name: Commit Dashboard Data
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add docs/data.json || true
+          git commit -m "Update dashboard data" || true
+          git push || true

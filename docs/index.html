@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Abstract Garden - Progress Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 3em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .subtitle {
+            text-align: center;
+            opacity: 0.9;
+            margin-bottom: 40px;
+            font-size: 1.2em;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 25px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: transform 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .stat-value {
+            font-size: 2.5em;
+            font-weight: bold;
+            margin: 10px 0;
+            color: #ffd700;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .stat-label {
+            opacity: 0.9;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-size: 0.9em;
+        }
+
+        .progress-section {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 40px;
+        }
+
+        .progress-bar {
+            background: rgba(0, 0, 0, 0.3);
+            height: 40px;
+            border-radius: 20px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ffd700, #ffed4e);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #333;
+            transition: width 1s ease;
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+        }
+
+        .sprint-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .sprint-badge {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 15px;
+            text-align: center;
+            border: 2px solid rgba(255, 215, 0, 0.3);
+        }
+
+        .sprint-badge.completed {
+            background: rgba(255, 215, 0, 0.2);
+            border-color: #ffd700;
+        }
+
+        .memory-section {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 40px;
+        }
+
+        .memory-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .memory-fragment {
+            aspect-ratio: 1;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2em;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+        }
+
+        .memory-fragment.collected {
+            background: rgba(255, 215, 0, 0.2);
+            border-color: #ffd700;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .leaderboard {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+        }
+
+        .leader-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 15px;
+            margin: 10px 0;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            align-items: center;
+        }
+
+        .leader-rank {
+            font-size: 1.5em;
+            width: 50px;
+            text-align: center;
+        }
+
+        .leader-name {
+            flex: 1;
+            padding: 0 20px;
+        }
+
+        .leader-stats {
+            text-align: right;
+        }
+
+        .rank-1 { color: #ffd700; }
+        .rank-2 { color: #c0c0c0; }
+        .rank-3 { color: #cd7f32; }
+
+        .cta-button {
+            display: inline-block;
+            background: #ffd700;
+            color: #333;
+            padding: 15px 40px;
+            border-radius: 30px;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 1.2em;
+            margin: 20px auto;
+            display: block;
+            text-align: center;
+            max-width: 300px;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(255, 215, 0, 0.4);
+        }
+
+        .cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 215, 0, 0.6);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 1.2em;
+            opacity: 0.7;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌳 Abstract Garden</h1>
+        <p class="subtitle">3D Animation Production - Gamified Learning Journey</p>
+
+        <!-- Main Stats -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">Portfolio Value</div>
+                <div class="stat-value" id="portfolio-value">$0</div>
+                <div class="stat-label">Real Market Value</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Monthly Income</div>
+                <div class="stat-value" id="monthly-income">$0</div>
+                <div class="stat-label">Passive Potential</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Level</div>
+                <div class="stat-value" id="level">0</div>
+                <div class="stat-label" id="level-title">Beginner</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Tasks Complete</div>
+                <div class="stat-value" id="tasks-complete">0/49</div>
+                <div class="stat-label">Main Tasks</div>
+            </div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="progress-section">
+            <h2>Overall Progress</h2>
+            <div class="progress-bar">
+                <div class="progress-fill" id="main-progress" style="width: 0%">
+                    0%
+                </div>
+            </div>
+            <p id="progress-message" style="text-align: center; margin-top: 20px; opacity: 0.9;">
+                Start your journey by completing your first task!
+            </p>
+        </div>
+
+        <!-- Sprint Progress -->
+        <div class="progress-section">
+            <h2>Sprint Progress</h2>
+            <div class="sprint-grid">
+                <div class="sprint-badge" id="sprint-1">
+                    <div>Sprint 1</div>
+                    <div style="font-size: 1.5em; margin: 10px 0;">0%</div>
+                </div>
+                <div class="sprint-badge" id="sprint-2">
+                    <div>Sprint 2</div>
+                    <div style="font-size: 1.5em; margin: 10px 0;">0%</div>
+                </div>
+                <div class="sprint-badge" id="sprint-3">
+                    <div>Sprint 3</div>
+                    <div style="font-size: 1.5em; margin: 10px 0;">0%</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Memory Collection -->
+        <div class="memory-section">
+            <h2>Memory Fragments Collected</h2>
+            <p style="opacity: 0.9; margin-top: 10px;">Each task unlocks a piece of CG history</p>
+            <div class="memory-grid" id="memory-grid">
+                <!-- Will be populated with 49 fragments -->
+            </div>
+            <p id="memory-count" style="text-align: center; margin-top: 20px;">
+                0/49 memories collected
+            </p>
+        </div>
+
+        <!-- Leaderboard -->
+        <div class="leaderboard">
+            <h2>Leaderboard</h2>
+            <div id="leaderboard-content">
+                <div class="loading">Loading data from GitHub...</div>
+            </div>
+        </div>
+
+        <!-- Call to Action -->
+        <a href="https://github.com/jdoash/abstract-garden-video/issues?q=is%3Aissue+is%3Aopen+label%3A%22Sprint+1%22" class="cta-button">
+            Start Sprint 1 Tasks →
+        </a>
+    </div>
+
+    <script>
+        // Fetch data from GitHub API
+        async function fetchDashboardData() {
+            try {
+                const repo = 'jdoash/abstract-garden-video';
+                
+                // Fetch all issues
+                const issuesResponse = await fetch(`https://api.github.com/repos/${repo}/issues?state=all&per_page=100`);
+                const issues = await issuesResponse.json();
+                
+                // Calculate stats
+                const closedIssues = issues.filter(i => i.state === 'closed' && !i.pull_request);
+                const openIssues = issues.filter(i => i.state === 'open' && !i.pull_request);
+                
+                // Update stats
+                const totalTasks = 49;
+                const completedTasks = Math.min(closedIssues.length, totalTasks);
+                const progress = Math.round((completedTasks / totalTasks) * 100);
+                
+                // Portfolio value calculation (simplified)
+                const avgValue = 75;
+                const portfolioValue = completedTasks * avgValue;
+                const monthlyIncome = Math.round(portfolioValue * 0.2);
+                
+                // Update DOM
+                document.getElementById('portfolio-value').textContent = `$${portfolioValue.toLocaleString()}`;
+                document.getElementById('monthly-income').textContent = `$${monthlyIncome}`;
+                document.getElementById('tasks-complete').textContent = `${completedTasks}/${totalTasks}`;
+                document.getElementById('main-progress').style.width = `${progress}%`;
+                document.getElementById('main-progress').textContent = `${progress}%`;
+                
+                // Calculate level
+                const xp = completedTasks * 100;
+                const level = Math.floor(Math.sqrt(xp / 100)) + 1;
+                const levelTitles = ['Beginner', 'Apprentice', 'Professional', 'Expert', 'Master', 'Elite'];
+                
+                document.getElementById('level').textContent = level;
+                document.getElementById('level-title').textContent = levelTitles[Math.min(level - 1, 5)];
+                
+                // Update progress message
+                const messages = [
+                    "Start your journey by completing your first task!",
+                    "Great start! Keep the momentum going!",
+                    "You're making excellent progress!",
+                    "Halfway there! Your portfolio is growing!",
+                    "Amazing work! The finish line is in sight!",
+                    "Project complete! Your portfolio is ready for market!"
+                ];
+                
+                const messageIndex = Math.floor((progress / 100) * (messages.length - 1));
+                document.getElementById('progress-message').textContent = messages[messageIndex];
+                
+                // Update memory fragments
+                const memoryGrid = document.getElementById('memory-grid');
+                memoryGrid.innerHTML = '';
+                for (let i = 0; i < 49; i++) {
+                    const fragment = document.createElement('div');
+                    fragment.className = 'memory-fragment' + (i < completedTasks ? ' collected' : '');
+                    fragment.textContent = i < completedTasks ? '✨' : '?';
+                    fragment.title = i < completedTasks ? 'Memory collected!' : 'Complete a task to unlock';
+                    memoryGrid.appendChild(fragment);
+                }
+                
+                document.getElementById('memory-count').textContent = `${completedTasks}/49 memories collected`;
+                
+                // Update sprint progress
+                const sprint1Tasks = closedIssues.filter(i => 
+                    i.labels.some(l => l.name === 'Sprint 1')
+                ).length;
+                const sprint2Tasks = closedIssues.filter(i => 
+                    i.labels.some(l => l.name === 'Sprint 2')
+                ).length;
+                const sprint3Tasks = closedIssues.filter(i => 
+                    i.labels.some(l => l.name === 'Sprint 3')
+                ).length;
+                
+                const updateSprint = (id, completed, total) => {
+                    const element = document.getElementById(id);
+                    const percent = Math.round((completed / total) * 100);
+                    element.querySelector('div:nth-child(2)').textContent = `${percent}%`;
+                    if (percent === 100) element.classList.add('completed');
+                };
+                
+                updateSprint('sprint-1', sprint1Tasks, 20);
+                updateSprint('sprint-2', sprint2Tasks, 15);
+                updateSprint('sprint-3', sprint3Tasks, 14);
+                
+                // Update leaderboard (simplified for now)
+                const leaderboardContent = document.getElementById('leaderboard-content');
+                if (completedTasks > 0) {
+                    leaderboardContent.innerHTML = `
+                        <div class="leader-row">
+                            <div class="leader-rank rank-1">🥇</div>
+                            <div class="leader-name">Michael</div>
+                            <div class="leader-stats">
+                                <div>Level ${level}</div>
+                                <div style="opacity: 0.8; font-size: 0.9em;">${completedTasks} tasks • $${portfolioValue}</div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    leaderboardContent.innerHTML = '<p style="text-align: center; opacity: 0.7;">Complete tasks to appear on the leaderboard!</p>';
+                }
+                
+            } catch (error) {
+                console.error('Error fetching data:', error);
+            }
+        }
+
+        // Load data on page load
+        fetchDashboardData();
+        
+        // Refresh every 30 seconds
+        setInterval(fetchDashboardData, 30000);
+    </script>
+</body>
+</html>
