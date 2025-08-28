@@ -1,0 +1,257 @@
+name: Deadline Enforcer
+
+on:
+  schedule:
+    - cron: '0 8 * * *'    # Daily deadline check
+    - cron: '0 20 * * *'   # Evening deadline warning
+  workflow_dispatch:
+
+jobs:
+  check-deadlines:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enforce Milestone Deadlines
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const now = new Date();
+            
+            // Get all milestones
+            const milestones = await github.rest.issues.listMilestones({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open'
+            });
+            
+            for (const milestone of milestones.data) {
+              if (!milestone.due_on) continue;
+              
+              const dueDate = new Date(milestone.due_on);
+              const daysUntilDue = Math.floor((dueDate - now) / (1000 * 60 * 60 * 24));
+              const hoursUntilDue = Math.floor((dueDate - now) / (1000 * 60 * 60));
+              
+              // Get issues in this milestone
+              const issues = await github.rest.issues.listForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                milestone: milestone.number,
+                state: 'open'
+              });
+              
+              const openCount = issues.data.length;
+              const totalCount = milestone.open_issues + milestone.closed_issues;
+              const percentComplete = totalCount > 0 ? 
+                Math.round((milestone.closed_issues / totalCount) * 100) : 0;
+              
+              // Create urgency levels
+              let urgencyLevel = '';
+              let urgencyEmoji = '';
+              let message = '';
+              
+              if (daysUntilDue < 0) {
+                // OVERDUE
+                urgencyLevel = 'OVERDUE';
+                urgencyEmoji = '🚨🚨🚨';
+                
+                message = `# ${urgencyEmoji} MILESTONE OVERDUE: ${milestone.title}\n\n`;
+                message += `## ⏰ This milestone was due ${Math.abs(daysUntilDue)} days ago!\n\n`;
+                message += `### 📊 Status\n`;
+                message += `- **${openCount} tasks** still incomplete\n`;
+                message += `- Only **${percentComplete}%** complete\n\n`;
+                message += `## 🔴 IMMEDIATE ACTION REQUIRED\n`;
+                message += `You are now ${Math.abs(daysUntilDue)} days behind schedule.\n`;
+                message += `Every day of delay makes the next milestone harder.\n\n`;
+                message += `### Must Complete TODAY:\n`;
+                
+                issues.data.slice(0, 3).forEach(issue => {
+                  message += `- [ ] ${issue.title} (#${issue.number})\n`;
+                });
+                
+                message += `\n**No more delays. Start NOW.**`;
+                
+              } else if (hoursUntilDue <= 24) {
+                // DUE TODAY
+                urgencyLevel = 'DUE TODAY';
+                urgencyEmoji = '🔴⏰';
+                
+                message = `# ${urgencyEmoji} DEADLINE TODAY: ${milestone.title}\n\n`;
+                message += `## ⚡ ${hoursUntilDue} HOURS REMAINING!\n\n`;
+                message += `### 📊 Critical Status\n`;
+                message += `- **${openCount} tasks** must be done TODAY\n`;
+                message += `- Currently **${percentComplete}%** complete\n\n`;
+                message += `## 🎯 Today's Battle Plan\n`;
+                
+                if (openCount <= 3) {
+                  message += `You can finish ALL remaining tasks today:\n`;
+                } else {
+                  message += `Focus on the most critical tasks:\n`;
+                }
+                
+                issues.data.slice(0, Math.min(5, openCount)).forEach(issue => {
+                  message += `- [ ] ${issue.title} (#${issue.number})\n`;
+                });
+                
+                message += `\n### ⏰ Time Breakdown\n`;
+                message += `- ${Math.floor(hoursUntilDue / openCount)} hours per task\n`;
+                message += `- Work non-stop until complete\n`;
+                message += `- This is your moment - PUSH THROUGH!\n`;
+                
+              } else if (daysUntilDue <= 3) {
+                // URGENT - 3 days or less
+                urgencyLevel = 'URGENT';
+                urgencyEmoji = '⚠️🔥';
+                
+                message = `# ${urgencyEmoji} URGENT: ${daysUntilDue} Days Until ${milestone.title} Deadline\n\n`;
+                message += `### 📊 Milestone Status\n`;
+                message += `- Progress: **${percentComplete}%** complete\n`;
+                message += `- Remaining: **${openCount} tasks**\n`;
+                message += `- Time left: **${daysUntilDue} days**\n\n`;
+                message += `## 📈 Required Daily Velocity\n`;
+                message += `You need to complete **${Math.ceil(openCount / daysUntilDue)} tasks per day**\n\n`;
+                message += `### Today's Targets:\n`;
+                
+                const dailyTarget = Math.ceil(openCount / daysUntilDue);
+                issues.data.slice(0, dailyTarget).forEach(issue => {
+                  message += `- [ ] ${issue.title} (#${issue.number})\n`;
+                });
+                
+                message += `\n**Start immediately. No time for procrastination.**`;
+                
+              } else if (daysUntilDue <= 7) {
+                // WARNING - 1 week left
+                urgencyLevel = 'WARNING';
+                urgencyEmoji = '⚡';
+                
+                message = `# ${urgencyEmoji} Deadline Approaching: ${milestone.title}\n\n`;
+                message += `## 📅 ${daysUntilDue} Days Remaining\n`;
+                message += `- Current progress: **${percentComplete}%**\n`;
+                message += `- Tasks remaining: **${openCount}**\n`;
+                message += `- Daily target: **${(openCount / daysUntilDue).toFixed(1)} tasks/day**\n\n`;
+                message += `### 🎯 This Week's Focus\n`;
+                message += `Complete at least ${Math.ceil(openCount / 2)} tasks by midweek.\n\n`;
+                message += `**Suggested tasks to start:**\n`;
+                
+                issues.data.slice(0, 3).forEach(issue => {
+                  message += `- ${issue.title} (#${issue.number})\n`;
+                });
+                
+              } else {
+                // More than a week - gentle reminder
+                continue; // Skip creating issue for far-off deadlines
+              }
+              
+              // Add consequences section for urgent deadlines
+              if (daysUntilDue <= 3) {
+                message += `\n\n## ⚡ Consequences of Missing This Deadline\n`;
+                message += `- Next milestone becomes impossible\n`;
+                message += `- Portfolio completion delayed\n`;
+                message += `- Momentum completely lost\n`;
+                message += `- Starting over becomes harder\n\n`;
+                message += `**Don't let this happen. You've come too far to quit now.**`;
+              }
+              
+              // Add motivational closer
+              message += `\n\n---\n`;
+              message += `*Remember: Deadlines create diamonds. Pressure creates progress.*\n`;
+              message += `*You have everything you need. Now execute.*`;
+              
+              // Create the deadline issue
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `${urgencyEmoji} ${urgencyLevel}: ${milestone.title} - ${daysUntilDue < 0 ? Math.abs(daysUntilDue) + ' DAYS OVERDUE' : daysUntilDue + ' days left'}`,
+                body: message,
+                labels: ['deadline', urgencyLevel.toLowerCase(), 'high-priority'],
+                milestone: milestone.number,
+                assignees: ['zacteel']
+              });
+            }
+            
+  overdue-escalation:
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 20 * * *'
+    steps:
+      - name: Escalate Overdue Tasks
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Find all overdue milestones
+            const now = new Date();
+            const milestones = await github.rest.issues.listMilestones({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open'
+            });
+            
+            const overdueMilestones = milestones.data.filter(m => 
+              m.due_on && new Date(m.due_on) < now
+            );
+            
+            if (overdueMilestones.length > 0) {
+              let escalationMessage = `# 🚨🚨🚨 CRITICAL ESCALATION 🚨🚨🚨\n\n`;
+              escalationMessage += `## You have ${overdueMilestones.length} OVERDUE milestone(s)\n\n`;
+              
+              let totalOverdueTasks = 0;
+              let oldestOverdue = 0;
+              
+              for (const milestone of overdueMilestones) {
+                const daysOverdue = Math.floor((now - new Date(milestone.due_on)) / (1000 * 60 * 60 * 24));
+                oldestOverdue = Math.max(oldestOverdue, daysOverdue);
+                totalOverdueTasks += milestone.open_issues;
+                
+                escalationMessage += `### ❌ ${milestone.title}\n`;
+                escalationMessage += `- **${daysOverdue} days overdue**\n`;
+                escalationMessage += `- **${milestone.open_issues} tasks** still incomplete\n\n`;
+              }
+              
+              escalationMessage += `## 📊 The Hard Numbers\n`;
+              escalationMessage += `- Total overdue tasks: **${totalOverdueTasks}**\n`;
+              escalationMessage += `- Longest overdue: **${oldestOverdue} days**\n`;
+              escalationMessage += `- Project delay: **${Math.floor(oldestOverdue / 7)} weeks**\n\n`;
+              
+              escalationMessage += `## 🔥 EMERGENCY ACTION PLAN\n`;
+              escalationMessage += `### Option 1: Comeback Mode\n`;
+              escalationMessage += `1. Cancel all non-essential activities\n`;
+              escalationMessage += `2. Work 4-6 hours daily until caught up\n`;
+              escalationMessage += `3. Complete 3-5 tasks per day\n`;
+              escalationMessage += `4. No excuses, no delays\n\n`;
+              
+              escalationMessage += `### Option 2: Revised Timeline\n`;
+              escalationMessage += `1. Accept the delay\n`;
+              escalationMessage += `2. Set new, realistic deadlines\n`;
+              escalationMessage += `3. Commit to 2 tasks daily minimum\n`;
+              escalationMessage += `4. Build momentum gradually\n\n`;
+              
+              escalationMessage += `### Option 3: Crisis Sprint\n`;
+              escalationMessage += `1. Dedicate this entire weekend\n`;
+              escalationMessage += `2. Complete one full milestone\n`;
+              escalationMessage += `3. Prove to yourself you can do this\n`;
+              escalationMessage += `4. Reset momentum\n\n`;
+              
+              escalationMessage += `## 💭 Real Talk\n`;
+              escalationMessage += `You're ${oldestOverdue} days behind where you wanted to be.\n`;
+              escalationMessage += `But you're not defeated unless you quit.\n\n`;
+              escalationMessage += `Every day you wait, it gets harder.\n`;
+              escalationMessage += `Every task you complete, it gets easier.\n\n`;
+              escalationMessage += `**The choice is yours. Make it now.**\n\n`;
+              escalationMessage += `---\n`;
+              escalationMessage += `*This escalation will repeat daily until you take action.*`;
+              
+              // Create critical escalation issue
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `🚨 CRITICAL: ${totalOverdueTasks} Tasks Overdue by ${oldestOverdue} Days`,
+                body: escalationMessage,
+                labels: ['critical', 'overdue', 'escalation', 'requires-immediate-action'],
+                assignees: ['zacteel']
+              });
+              
+              // Pin the issue
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                pinned: true
+              });
+            }

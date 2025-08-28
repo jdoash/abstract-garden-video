@@ -1,0 +1,246 @@
+name: Visual Progress Dashboard
+
+on:
+  schedule:
+    - cron: '0 6 * * *'  # Daily at 6 AM
+  workflow_dispatch:
+  issues:
+    types: [closed]
+
+jobs:
+  update-dashboard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate Visual Dashboard
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Fetch all data
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'all',
+              per_page: 100
+            });
+            
+            const milestones = await github.rest.issues.listMilestones({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'all'
+            });
+            
+            // Calculate statistics
+            const totalIssues = issues.data.length;
+            const closedIssues = issues.data.filter(i => i.state === 'closed').length;
+            const openIssues = totalIssues - closedIssues;
+            const overallProgress = Math.round((closedIssues / totalIssues) * 100);
+            
+            // Group by labels
+            const byLabel = {};
+            issues.data.forEach(issue => {
+              issue.labels.forEach(label => {
+                if (!byLabel[label.name]) {
+                  byLabel[label.name] = { total: 0, closed: 0 };
+                }
+                byLabel[label.name].total++;
+                if (issue.state === 'closed') byLabel[label.name].closed++;
+              });
+            });
+            
+            // Create visual progress bars
+            function createProgressBar(percent, width = 30) {
+              const filled = Math.floor((percent / 100) * width);
+              const empty = width - filled;
+              const bar = '█'.repeat(filled) + '░'.repeat(empty);
+              return `[${bar}] ${percent}%`;
+            }
+            
+            // Create burndown chart data
+            const today = new Date();
+            const projectStart = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000); // 7 days ago
+            const projectEnd = new Date(today.getTime() + 35 * 24 * 60 * 60 * 1000); // 35 days from now
+            const totalDays = Math.floor((projectEnd - projectStart) / (1000 * 60 * 60 * 24));
+            const daysElapsed = Math.floor((today - projectStart) / (1000 * 60 * 60 * 24));
+            const daysRemaining = totalDays - daysElapsed;
+            
+            // Calculate velocity
+            const velocity = daysElapsed > 0 ? (closedIssues / daysElapsed).toFixed(2) : 0;
+            const requiredVelocity = daysRemaining > 0 ? (openIssues / daysRemaining).toFixed(2) : 0;
+            
+            // Generate dashboard
+            let dashboard = `# 📊 Visual Progress Dashboard\n`;
+            dashboard += `*Last Updated: ${today.toLocaleString()}*\n\n`;
+            
+            // Overall Progress Section
+            dashboard += `## 🎯 Overall Project Progress\n\n`;
+            dashboard += `### Master Progress Bar\n`;
+            dashboard += `\`\`\`\n`;
+            dashboard += `${createProgressBar(overallProgress, 50)}\n`;
+            dashboard += `\`\`\`\n`;
+            dashboard += `- ✅ Completed: **${closedIssues}** tasks\n`;
+            dashboard += `- 📝 Remaining: **${openIssues}** tasks\n`;
+            dashboard += `- 📊 Total: **${totalIssues}** tasks\n\n`;
+            
+            // Sprint Progress
+            dashboard += `## 🏃 Sprint Progress\n\n`;
+            ['Sprint 1', 'Sprint 2', 'Sprint 3'].forEach(sprint => {
+              if (byLabel[sprint]) {
+                const sprintProgress = Math.round((byLabel[sprint].closed / byLabel[sprint].total) * 100);
+                dashboard += `### ${sprint}\n`;
+                dashboard += `${createProgressBar(sprintProgress, 40)}\n`;
+                dashboard += `Tasks: ${byLabel[sprint].closed}/${byLabel[sprint].total} complete\n\n`;
+              }
+            });
+            
+            // Milestone Status
+            dashboard += `## 📅 Milestone Deadlines\n\n`;
+            dashboard += `| Milestone | Due Date | Progress | Status |\n`;
+            dashboard += `|-----------|----------|----------|--------|\n`;
+            
+            milestones.data.forEach(milestone => {
+              const progress = milestone.open_issues + milestone.closed_issues > 0 ?
+                Math.round((milestone.closed_issues / (milestone.open_issues + milestone.closed_issues)) * 100) : 0;
+              
+              let status = '🟢 On Track';
+              if (milestone.due_on) {
+                const dueDate = new Date(milestone.due_on);
+                const daysUntil = Math.floor((dueDate - today) / (1000 * 60 * 60 * 24));
+                
+                if (daysUntil < 0) status = '🔴 OVERDUE';
+                else if (daysUntil <= 3) status = '🟡 At Risk';
+                else if (progress < 50 && daysUntil < 7) status = '🟠 Behind';
+              }
+              
+              dashboard += `| ${milestone.title} | ${milestone.due_on ? new Date(milestone.due_on).toLocaleDateString() : 'No deadline'} | ${createProgressBar(progress, 15)} | ${status} |\n`;
+            });
+            
+            // Velocity Metrics
+            dashboard += `\n## 📈 Velocity & Projections\n\n`;
+            dashboard += `### Current Performance\n`;
+            dashboard += `- ⚡ Current velocity: **${velocity}** tasks/day\n`;
+            dashboard += `- 🎯 Required velocity: **${requiredVelocity}** tasks/day\n`;
+            dashboard += velocity < requiredVelocity ? 
+              `- ⚠️ **NEED TO SPEED UP** by ${(requiredVelocity - velocity).toFixed(2)} tasks/day\n` :
+              `- ✅ **ON TRACK** - maintaining good pace!\n`;
+            
+            // Time projections
+            const estimatedDaysToComplete = velocity > 0 ? Math.ceil(openIssues / velocity) : 999;
+            const estimatedCompletionDate = new Date(today.getTime() + estimatedDaysToComplete * 24 * 60 * 60 * 1000);
+            
+            dashboard += `\n### Time Projections\n`;
+            dashboard += `- 📅 At current pace: Complete in **${estimatedDaysToComplete}** days\n`;
+            dashboard += `- 🏁 Estimated completion: **${estimatedCompletionDate.toLocaleDateString()}**\n`;
+            dashboard += `- ⏰ Target completion: **${projectEnd.toLocaleDateString()}**\n`;
+            
+            if (estimatedCompletionDate > projectEnd) {
+              const delayDays = Math.floor((estimatedCompletionDate - projectEnd) / (1000 * 60 * 60 * 24));
+              dashboard += `- 🚨 **PROJECTED DELAY: ${delayDays} days**\n`;
+            }
+            
+            // Activity Heatmap (last 7 days)
+            dashboard += `\n## 🔥 Activity Heatmap (Last 7 Days)\n\n`;
+            dashboard += `| Day | Tasks Closed | Activity |\n`;
+            dashboard += `|-----|--------------|----------|\n`;
+            
+            for (let i = 6; i >= 0; i--) {
+              const date = new Date(today.getTime() - i * 24 * 60 * 60 * 1000);
+              const dayStart = new Date(date.setHours(0, 0, 0, 0));
+              const dayEnd = new Date(date.setHours(23, 59, 59, 999));
+              
+              const dayActivity = issues.data.filter(issue => {
+                if (!issue.closed_at) return false;
+                const closedDate = new Date(issue.closed_at);
+                return closedDate >= dayStart && closedDate <= dayEnd;
+              }).length;
+              
+              const activityBar = '🟩'.repeat(Math.min(dayActivity, 5)) + '⬜'.repeat(Math.max(0, 5 - dayActivity));
+              const dayName = dayStart.toLocaleDateString('en', { weekday: 'short' });
+              
+              dashboard += `| ${dayName} | ${dayActivity} | ${activityBar} |\n`;
+            }
+            
+            // Part-by-Part Progress
+            dashboard += `\n## 📚 Progress by Instruction Part\n\n`;
+            dashboard += `\`\`\`\n`;
+            for (let part = 1; part <= 12; part++) {
+              const partIssues = issues.data.filter(i => i.title.includes(`Part ${part}`));
+              const partClosed = partIssues.filter(i => i.state === 'closed').length;
+              const partTotal = partIssues.length;
+              const partProgress = partTotal > 0 ? Math.round((partClosed / partTotal) * 100) : 0;
+              
+              dashboard += `Part ${part.toString().padStart(2, '0')}: ${createProgressBar(partProgress, 20)} (${partClosed}/${partTotal})\n`;
+            }
+            dashboard += `\`\`\`\n`;
+            
+            // Achievements & Motivation
+            dashboard += `\n## 🏆 Achievements Unlocked\n\n`;
+            
+            if (closedIssues >= 1) dashboard += `- ✅ **First Step** - Completed your first task!\n`;
+            if (closedIssues >= 5) dashboard += `- ⭐ **High Five** - 5 tasks completed!\n`;
+            if (closedIssues >= 10) dashboard += `- 🔟 **Double Digits** - 10 tasks down!\n`;
+            if (closedIssues >= 20) dashboard += `- 🎯 **Focused** - 20 tasks completed!\n`;
+            if (closedIssues >= 35) dashboard += `- 🚀 **Halfway Hero** - 50% complete!\n`;
+            if (closedIssues >= 50) dashboard += `- 💎 **Unstoppable** - 50+ tasks done!\n`;
+            if (closedIssues >= 69) dashboard += `- 👑 **CHAMPION** - PROJECT COMPLETE!\n`;
+            
+            const nextAchievement = closedIssues < 5 ? 5 : 
+                                   closedIssues < 10 ? 10 :
+                                   closedIssues < 20 ? 20 :
+                                   closedIssues < 35 ? 35 :
+                                   closedIssues < 50 ? 50 : 69;
+            
+            dashboard += `\n**Next achievement in ${nextAchievement - closedIssues} tasks!**\n`;
+            
+            // Call to Action
+            dashboard += `\n## 💪 Today's Mission\n\n`;
+            
+            if (velocity < requiredVelocity) {
+              dashboard += `### ⚠️ Catch-Up Mode Active\n`;
+              dashboard += `You need to complete **${Math.ceil(requiredVelocity)}** tasks today to get back on track.\n\n`;
+            } else {
+              dashboard += `### ✅ Maintain Your Momentum\n`;
+              dashboard += `Complete **${Math.ceil(velocity)}** tasks today to stay on track.\n\n`;
+            }
+            
+            // Get suggested next tasks
+            const suggestedTasks = issues.data
+              .filter(i => i.state === 'open')
+              .filter(i => i.labels.some(l => l.name === 'high-priority'))
+              .slice(0, 3);
+            
+            dashboard += `### 🎯 Suggested Tasks for Today:\n`;
+            suggestedTasks.forEach(task => {
+              dashboard += `1. [${task.title}](${task.html_url})\n`;
+            });
+            
+            dashboard += `\n---\n`;
+            dashboard += `*This dashboard updates automatically every day at 6 AM.*\n`;
+            dashboard += `*Close a task to see instant progress updates!*`;
+            
+            // Find and update or create dashboard issue
+            const dashboardIssues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'dashboard',
+              state: 'open'
+            });
+            
+            if (dashboardIssues.data.length > 0) {
+              // Update existing dashboard
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: dashboardIssues.data[0].number,
+                body: dashboard
+              });
+            } else {
+              // Create new dashboard
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: '📊 Visual Progress Dashboard - PINNED',
+                body: dashboard,
+                labels: ['dashboard', 'pinned'],
+                pinned: true
+              });
+            }
